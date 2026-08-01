@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Study Quest</title>
+<link rel="stylesheet" href="theme.css" />
+<link rel="stylesheet" href="dashboard.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="hexbadge" id="levelBadge">
+          <svg viewBox="0 0 84 84">
+            <polygon points="42,4 76,23 76,61 42,80 8,61 8,23" fill="none" stroke="#2e3460" stroke-width="4"/>
+            <polygon id="levelRing" points="42,4 76,23 76,61 42,80 8,61 8,23" fill="none" stroke="#f5b942" stroke-width="4"
+              stroke-dasharray="0 400" />
+          </svg>
+          <div class="level-num" id="levelNum">1</div>
+        </div>
+        <div class="brand-text">
+          <h1>Study Quest</h1>
+          <div class="xp-line" id="xpLine">0 / 250 XP</div>
+        </div>
+      </div>
+
+      <div class="stat-strip">
+        <div class="pill" id="streakPill">🔥 0 day streak</div>
+        <div class="pill" id="todayPill">⏱ 0m today</div>
+        <div class="pill" id="totalPill">📚 0h total</div>
+      </div>
+
+      <div class="topbar-actions">
+        <button class="ghost" id="btnOverlay">Toggle Floating Timer</button>
+      </div>
+    </header>
+
+    <main class="grid">
+      <section class="panel session-panel">
+        <h2>Session</h2>
+        <div class="timer-display" id="timerDisplay">00:00:00</div>
+        <div class="subject-row">
+          <input type="text" id="subjectInput" placeholder="What are you studying? (e.g. Calculus)" list="subjectList" />
+          <datalist id="subjectList"></datalist>
+        </div>
+        <div class="timer-controls">
+          <button class="primary" id="btnStart">Start</button>
+          <button class="ghost" id="btnPause" disabled>Pause</button>
+          <button class="danger" id="btnStop" disabled>Stop &amp; Save</button>
+        </div>
+        <div class="current-subject" id="currentSubjectLabel"></div>
+      </section>
+
+      <section class="panel todo-panel">
+        <h2>Quest Log</h2>
+        <div class="todo-add-row">
+          <input type="text" id="todoInput" placeholder="Add a task..." />
+          <button class="primary" id="btnAddTodo">Add</button>
+        </div>
+        <ul class="todo-list" id="todoList"></ul>
+      </section>
+
+      <section class="panel history-panel">
+        <h2>Session History</h2>
+        <ul class="history-list" id="historyList"></ul>
+      </section>
+    </main>
+  </div>
+
+  <script src="dashboard.js"></script>
+</body>
+</html>

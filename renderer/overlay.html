@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Study Quest Overlay</title>
+<link rel="stylesheet" href="theme.css" />
+<link rel="stylesheet" href="overlay.css" />
+</head>
+<body>
+  <div class="overlay-card">
+    <div class="drag-bar" id="dragBar">
+      <span class="dot" id="statusDot"></span>
+      <span class="title">Study Quest</span>
+      <button class="mini-btn" id="btnDash" title="Open dashboard">⤢</button>
+      <button class="mini-btn" id="btnClose" title="Hide overlay">–</button>
+    </div>
+
+    <div class="timer-block">
+      <div class="timer-display" id="timerDisplay">00:00:00</div>
+      <div class="subject-label" id="subjectLabel">Not studying</div>
+    </div>
+
+    <div class="controls">
+      <button class="primary" id="btnStart">Start</button>
+      <button class="ghost" id="btnPause" disabled>Pause</button>
+      <button class="danger" id="btnStop" disabled>Stop</button>
+    </div>
+
+    <div class="mini-todo">
+      <div class="mini-todo-head">Quest Log</div>
+      <ul id="miniTodoList"></ul>
+      <div class="mini-add-row">
+        <input type="text" id="miniTodoInput" placeholder="Quick add task..." />
+      </div>
+    </div>
+  </div>
+
+  <script src="overlay.js"></script>
+</body>
+</html>
