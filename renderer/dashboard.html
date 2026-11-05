@@ -2,70 +2,409 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
+<meta http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;" />
 <title>Study Quest</title>
 <link rel="stylesheet" href="theme.css" />
 <link rel="stylesheet" href="dashboard.css" />
 </head>
 <body>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+    <defs>
+      <symbol id="i-flame" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 3c1.4 3.3 4.7 5.2 4.7 9.1A4.7 4.7 0 0 1 7.3 12c0-2 1.1-3.6 2.7-5.1.2 1.2.8 2.1 1.6 2.5C11.4 8.6 11.6 5.7 12 3Z"/>
+        <path d="M12 21a3.6 3.6 0 0 0 3.6-3.6c0-2.1-1.6-3.7-3.6-5.7-2 2-3.6 3.6-3.6 5.7A3.6 3.6 0 0 0 12 21Z"/>
+      </symbol>
+      <symbol id="i-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>
+      </symbol>
+      <symbol id="i-book" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 6.4C10.4 5.4 8.4 5 6 5H3.2v13.6H6c2.4 0 4.4.4 6 1.4 1.6-1 3.6-1.4 6-1.4h2.8V5H18c-2.4 0-4.4.4-6 1.4Z"/>
+        <path d="M12 6.4V20"/>
+      </symbol>
+      <symbol id="i-target" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.2"/><circle cx="12" cy="12" r="0.8" fill="currentColor" stroke="none"/>
+      </symbol>
+      <symbol id="i-play" viewBox="0 0 24 24"><path d="M8.2 5.4v13.2L19 12 8.2 5.4Z" fill="currentColor"/></symbol>
+      <symbol id="i-pause" viewBox="0 0 24 24"><rect x="6.8" y="5.2" width="3.8" height="13.6" rx="1.4" fill="currentColor"/><rect x="13.4" y="5.2" width="3.8" height="13.6" rx="1.4" fill="currentColor"/></symbol>
+      <symbol id="i-stop" viewBox="0 0 24 24"><rect x="6.4" y="6.4" width="11.2" height="11.2" rx="2.6" fill="currentColor"/></symbol>
+      <symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round">
+        <path d="M12 5.5v13M5.5 12h13"/>
+      </symbol>
+      <symbol id="i-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+        <path d="m6.5 6.5 11 11M17.5 6.5l-11 11"/>
+      </symbol>
+      <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+        <path d="m5.5 12.5 4.2 4.2 8.8-9.4"/>
+      </symbol>
+      <symbol id="i-trash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4.5 7h15M9.5 7V4.8h5V7M6.8 7l.8 12.2h8.8L17.2 7M10 10.5v5.5M14 10.5v5.5"/>
+      </symbol>
+      <symbol id="i-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+        <path d="m7 9.5 5 5 5-5"/>
+      </symbol>
+      <symbol id="i-expand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M14 4h6v6M20 4l-7.5 7.5M10 20H4v-6M4 20l7.5-7.5"/>
+      </symbol>
+      <symbol id="i-minimize" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+        <path d="M6 12h12"/>
+      </symbol>
+      <symbol id="i-maximize" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round">
+        <rect x="5.5" y="5.5" width="13" height="13" rx="2"/>
+      </symbol>
+      <symbol id="i-restore" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round">
+        <rect x="8" y="8" width="10.5" height="10.5" rx="1.8"/><path d="M15.6 8V6.5A1.5 1.5 0 0 0 14.1 5H6.5A1.5 1.5 0 0 0 5 6.5v7.6A1.5 1.5 0 0 0 6.5 15.6H8"/>
+      </symbol>
+      <symbol id="i-sparkles" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 3.5c.7 3.9 1.9 5.1 5.8 5.8-3.9.7-5.1 1.9-5.8 5.8-.7-3.9-1.9-5.1-5.8-5.8 3.9-.7 5.1-1.9 5.8-5.8Z"/>
+        <path d="M18.5 14.5c.3 1.8.9 2.4 2.7 2.7-1.8.3-2.4.9-2.7 2.7-.3-1.8-.9-2.4-2.7-2.7 1.8-.3 2.4-.9 2.7-2.7Z"/>
+        <path d="M5.5 15.5c.2 1.2.6 1.6 1.8 1.8-1.2.2-1.6.6-1.8 1.8-.2-1.2-.6-1.6-1.8-1.8 1.2-.2 1.6-.6 1.8-1.8Z"/>
+      </symbol>
+      <symbol id="i-chart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 20V10M10 20V4.5M16 20v-7M22 20H2"/>
+      </symbol>
+      <symbol id="i-tag" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M11.2 3.8H4.5a.7.7 0 0 0-.7.7v6.7c0 .2.1.4.2.5l8.2 8.2a.8.8 0 0 0 1.1 0l6.2-6.2a.8.8 0 0 0 0-1.1l-8.2-8.2a.8.8 0 0 0-.5-.2Z"/>
+        <circle cx="8" cy="8" r="1.2" fill="currentColor" stroke="none"/>
+      </symbol>
+      <symbol id="i-history" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4.2 8.5A8.5 8.5 0 1 1 3.8 14"/><path d="M4.2 4.5v4.2h4.2M12 7.8V12l3 1.8"/>
+      </symbol>
+      <symbol id="i-layers" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+        <path d="m12 3.8 8.2 4.4L12 12.6 3.8 8.2 12 3.8Z"/><path d="m4.5 12.3 7.5 4 7.5-4M4.5 16.3l7.5 4 7.5-4"/>
+      </symbol>
+      <symbol id="i-zap" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M13.2 2.8 5.5 13h5.4l-1 8.2 7.6-10.2h-5.4l1.1-8.2Z"/>
+      </symbol>
+      <symbol id="i-arrow-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 19V5M6.5 10.5 12 5l5.5 5.5"/>
+      </symbol>
+      <symbol id="i-arrow-down" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 5v14M6.5 13.5 12 19l5.5-5.5"/>
+      </symbol>
+    </defs>
+  </svg>
+
   <div class="app">
-    <header class="topbar">
-      <div class="brand">
-        <div class="hexbadge" id="levelBadge">
-          <svg viewBox="0 0 84 84">
-            <polygon points="42,4 76,23 76,61 42,80 8,61 8,23" fill="none" stroke="#2e3460" stroke-width="4"/>
-            <polygon id="levelRing" points="42,4 76,23 76,61 42,80 8,61 8,23" fill="none" stroke="#f5b942" stroke-width="4"
-              stroke-dasharray="0 400" />
-          </svg>
-          <div class="level-num" id="levelNum">1</div>
-        </div>
-        <div class="brand-text">
-          <h1>Study Quest</h1>
-          <div class="xp-line" id="xpLine">0 / 250 XP</div>
+    <div class="titlebar" id="titlebar">
+      <div class="titlebar-brand">
+        <span class="logo-mark" aria-hidden="true"></span>
+        <span class="titlebar-title">Study Quest</span>
+        <span class="titlebar-divider" aria-hidden="true"></span>
+        <span class="titlebar-sub">Focus dashboard</span>
+      </div>
+      <div class="titlebar-actions">
+        <button class="btn-ghost titlebar-overlay-btn" id="btnOverlay" title="Show or hide the floating timer">
+          <svg class="icon icon-sm" aria-hidden="true"><use href="#i-expand"></use></svg>
+          <span>Floating timer</span>
+        </button>
+        <div class="window-controls" id="windowControls">
+          <button class="icon-btn win-btn" id="btnMinimize" title="Minimize" aria-label="Minimize">
+            <svg class="icon icon-sm" aria-hidden="true"><use href="#i-minimize"></use></svg>
+          </button>
+          <button class="icon-btn win-btn" id="btnMaximize" title="Maximize" aria-label="Maximize">
+            <svg class="icon icon-sm" aria-hidden="true"><use id="maximizeIcon" href="#i-maximize"></use></svg>
+          </button>
+          <button class="icon-btn win-btn win-close" id="btnCloseWindow" title="Close to tray" aria-label="Close to tray">
+            <svg class="icon icon-sm" aria-hidden="true"><use href="#i-x"></use></svg>
+          </button>
         </div>
       </div>
+    </div>
 
-      <div class="stat-strip">
-        <div class="pill" id="streakPill">🔥 0 day streak</div>
-        <div class="pill" id="todayPill">⏱ 0m today</div>
-        <div class="pill" id="totalPill">📚 0h total</div>
-      </div>
-
-      <div class="topbar-actions">
-        <button class="ghost" id="btnOverlay">Toggle Floating Timer</button>
-      </div>
-    </header>
-
-    <main class="grid">
-      <section class="panel session-panel">
-        <h2>Session</h2>
-        <div class="timer-display" id="timerDisplay">00:00:00</div>
-        <div class="subject-row">
-          <input type="text" id="subjectInput" placeholder="What are you studying? (e.g. Calculus)" list="subjectList" />
-          <datalist id="subjectList"></datalist>
+    <div class="page-main">
+      <header class="page-head">
+        <div class="greeting">
+          <div class="eyebrow"><span class="live-orb" aria-hidden="true"></span><span id="dateLabel">Today</span></div>
+          <h1 id="greetingText">Good evening</h1>
+          <p id="greetingSub">A fresh page. Start a session when you are ready.</p>
         </div>
-        <div class="timer-controls">
-          <button class="primary" id="btnStart">Start</button>
-          <button class="ghost" id="btnPause" disabled>Pause</button>
-          <button class="danger" id="btnStop" disabled>Stop &amp; Save</button>
-        </div>
-        <div class="current-subject" id="currentSubjectLabel"></div>
-      </section>
 
-      <section class="panel todo-panel">
-        <h2>Quest Log</h2>
-        <div class="todo-add-row">
-          <input type="text" id="todoInput" placeholder="Add a task..." />
-          <button class="primary" id="btnAddTodo">Add</button>
-        </div>
-        <ul class="todo-list" id="todoList"></ul>
-      </section>
+        <div class="stat-rail" aria-label="Study stats">
+          <div class="stat-card stat-level" id="levelBadge" title="Level">
+            <div class="level-hex" aria-hidden="true">
+              <div class="level-hex-inner"><span id="levelNum">1</span></div>
+            </div>
+            <div class="stat-level-copy">
+              <div class="stat-level-top">
+                <span class="stat-kicker">Level</span>
+                <span class="stat-value mono" id="xpLine">0 / 250 XP</span>
+              </div>
+              <div class="xp-track" aria-hidden="true"><div class="xp-fill" id="xpFill"></div></div>
+            </div>
+          </div>
 
-      <section class="panel history-panel">
-        <h2>Session History</h2>
-        <ul class="history-list" id="historyList"></ul>
-      </section>
-    </main>
+          <div class="stat-card" title="Current streak">
+            <span class="stat-icon gold" aria-hidden="true"><svg class="icon icon-sm"><use href="#i-flame"></use></svg></span>
+            <div class="stat-text">
+              <div class="stat-value" id="streakPill">0 days</div>
+              <div class="stat-kicker">Streak</div>
+            </div>
+          </div>
+
+          <div class="stat-card" title="Time studied today">
+            <span class="stat-icon teal" aria-hidden="true"><svg class="icon icon-sm"><use href="#i-clock"></use></svg></span>
+            <div class="stat-text">
+              <div class="stat-value" id="todayPill">0m</div>
+              <div class="stat-kicker">Today</div>
+            </div>
+          </div>
+
+          <div class="stat-card" title="All-time study time">
+            <span class="stat-icon violet" aria-hidden="true"><svg class="icon icon-sm"><use href="#i-book"></use></svg></span>
+            <div class="stat-text">
+              <div class="stat-value" id="totalPill">0h</div>
+              <div class="stat-kicker">All time</div>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main class="dashboard">
+        <section class="card focus-card" id="focusCard" aria-labelledby="focusTitle">
+          <div class="focus-head">
+            <div class="card-title">
+              <span class="kicker">Focus session</span>
+              <h2 id="focusTitle">Ready to focus</h2>
+            </div>
+            <span class="status-pill" id="sessionStatus">Idle</span>
+          </div>
+
+          <div class="ring-wrap" id="goalRingWrap" role="progressbar"
+               aria-label="Daily goal progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+            <svg class="ring-svg" viewBox="0 0 240 240" aria-hidden="true">
+              <defs>
+                <linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0" stop-color="#37ead0"/>
+                  <stop offset="0.65" stop-color="#5cd9ff"/>
+                  <stop offset="1" stop-color="#8e74ff"/>
+                </linearGradient>
+                <linearGradient id="ringGold" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0" stop-color="#ffe08a"/>
+                  <stop offset="1" stop-color="#ffae3d"/>
+                </linearGradient>
+              </defs>
+              <circle class="ring-ticks" cx="120" cy="120" r="112" pathLength="100"/>
+              <circle class="ring-track" cx="120" cy="120" r="96" pathLength="100"/>
+              <circle class="ring-progress" id="goalRing" cx="120" cy="120" r="96" pathLength="100" stroke-dasharray="0 100"/>
+            </svg>
+            <div class="ring-center">
+              <div class="timer-display" id="timerDisplay">00:00:00</div>
+              <div class="goal-pct" id="goalPct">No goal set</div>
+            </div>
+          </div>
+
+          <div class="goal-line">
+            <div class="goal-select-wrap">
+              <span class="kicker" id="goalLabel">Daily goal</span>
+              <div class="goal-picker" id="goalPicker">
+                <button type="button" class="goal-trigger" id="goalTrigger"
+                        aria-haspopup="listbox" aria-expanded="false"
+                        aria-labelledby="goalLabel goalValue">
+                  <svg class="icon icon-sm" aria-hidden="true"><use href="#i-target"></use></svg>
+                  <span id="goalValue">2 hours</span>
+                  <svg class="icon icon-sm chevron" aria-hidden="true"><use href="#i-chevron"></use></svg>
+                </button>
+                <select id="goalSelect" class="goal-select-native" aria-label="Daily study goal" tabindex="-1" aria-hidden="true">
+                  <option value="0">No goal</option>
+                  <option value="30">30 min</option>
+                  <option value="60">1 hour</option>
+                  <option value="90">1.5 hours</option>
+                  <option value="120">2 hours</option>
+                  <option value="180">3 hours</option>
+                  <option value="240">4 hours</option>
+                  <option value="300">5 hours</option>
+                  <option value="360">6 hours</option>
+                </select>
+                <div class="goal-menu" id="goalMenu" hidden>
+                  <div class="goal-menu-head">
+                    <span>Set a daily target</span>
+                    <span class="goal-menu-key">Esc</span>
+                  </div>
+                  <div class="goal-options" id="goalOptions" role="listbox" aria-label="Daily study goal"></div>
+                </div>
+              </div>
+            </div>
+            <div class="goal-text" id="goalText">No goal set</div>
+          </div>
+
+          <div class="subject-block">
+            <label class="field-label" for="subjectInput">Subject</label>
+            <div class="input-shell">
+              <svg class="icon icon-sm" aria-hidden="true"><use href="#i-tag"></use></svg>
+              <input type="text" id="subjectInput" placeholder="What are you focusing on?" list="subjectList"
+                     autocomplete="off" spellcheck="false" maxlength="60" />
+            </div>
+            <datalist id="subjectList"></datalist>
+          </div>
+
+          <div class="recent-chips" id="recentChips" aria-label="Recent subjects"></div>
+
+          <div class="focus-controls">
+            <button class="btn-primary" id="btnStart" title="Start session"><span id="startLabel">Start session</span></button>
+            <button class="btn-icon btn-stop" id="btnStop" disabled title="Stop and save session" aria-label="Stop and save session">
+              <svg class="icon" aria-hidden="true"><use href="#i-stop"></use></svg>
+            </button>
+          </div>
+          <p class="micro-hint" id="sessionHint">Sessions save automatically when you stop.</p>
+        </section>
+
+        <section class="workspace" aria-label="Study workspace">
+          <nav class="workspace-tabs" role="tablist" aria-label="Dashboard views">
+            <button class="workspace-tab is-active" id="tabOverview" data-tab="overview"
+                    role="tab" aria-selected="true" aria-controls="panelOverview" tabindex="0">
+              <svg class="icon" aria-hidden="true"><use href="#i-chart"></use></svg>
+              <span>Overview</span>
+            </button>
+            <button class="workspace-tab" id="tabMissions" data-tab="missions"
+                    role="tab" aria-selected="false" aria-controls="panelMissions" tabindex="-1">
+              <svg class="icon" aria-hidden="true"><use href="#i-layers"></use></svg>
+              <span>Missions</span>
+              <b class="tab-badge" id="missionsTabBadge" hidden>0</b>
+            </button>
+            <button class="workspace-tab" id="tabHistory" data-tab="history"
+                    role="tab" aria-selected="false" aria-controls="panelHistory" tabindex="-1">
+              <svg class="icon" aria-hidden="true"><use href="#i-history"></use></svg>
+              <span>History</span>
+              <b class="tab-badge" id="historyTabBadge" hidden>0</b>
+            </button>
+          </nav>
+
+          <div class="workspace-panels">
+            <section class="workspace-panel overview-panel" id="panelOverview" data-panel="overview"
+                     role="tabpanel" aria-labelledby="tabOverview">
+              <section class="card week-card" aria-labelledby="weekTitle">
+                <div class="card-head">
+                  <div class="card-title">
+                    <span class="kicker">Momentum</span>
+                    <h2 id="weekTitle">This week</h2>
+                  </div>
+                  <div class="week-summary">
+                    <span class="week-total mono" id="weekTotal">0m</span>
+                    <span class="delta" id="weekDelta"></span>
+                  </div>
+                </div>
+
+                <div class="week-plot" id="weekPlot"></div>
+                <div class="week-labels" id="weekLabels"></div>
+              </section>
+
+              <section class="card mix-card" aria-labelledby="mixTitle">
+                <div class="card-head">
+                  <div class="card-title">
+                    <span class="kicker">Balance</span>
+                    <h2 id="mixTitle">Focus mix</h2>
+                  </div>
+                  <span class="meta-pill" id="mixTotal">last 7 days</span>
+                </div>
+                <div class="mix-body">
+                  <div class="mix-donut" id="mixDonut" aria-hidden="true">
+                    <div class="mix-donut-center">
+                      <b id="mixCount">0</b>
+                      <span>subjects</span>
+                    </div>
+                  </div>
+                  <div class="mix-legend" id="mixLegend"></div>
+                </div>
+              </section>
+
+              <section class="card activity-card" aria-labelledby="activityTitle">
+                <div class="card-head activity-head">
+                  <div class="card-title">
+                    <span class="kicker">Consistency</span>
+                    <h2 id="activityTitle">Study activity</h2>
+                  </div>
+                  <div class="activity-meta">
+                    <div class="activity-legend" aria-label="Activity scale">
+                      <span>Less</span>
+                      <i class="activity-cell level-0" aria-hidden="true"></i>
+                      <i class="activity-cell level-1" aria-hidden="true"></i>
+                      <i class="activity-cell level-2" aria-hidden="true"></i>
+                      <i class="activity-cell level-3" aria-hidden="true"></i>
+                      <i class="activity-cell level-4" aria-hidden="true"></i>
+                      <span>More</span>
+                    </div>
+                    <div class="activity-summary">
+                      <span class="activity-total mono" id="activityTotal" title="Study time in the last 12 months">0m</span>
+                      <span class="meta-pill" id="activityDays" title="Active study days in the last 12 months">0 days</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="activity-body">
+                  <div class="activity-months" id="activityMonths" aria-hidden="true"></div>
+                  <div class="activity-chart">
+                    <div class="activity-weekdays" aria-hidden="true">
+                      <span></span><span>Mon</span><span></span><span>Wed</span><span></span><span>Fri</span><span></span>
+                    </div>
+                    <div class="activity-grid" id="activityGrid" role="grid"
+                         aria-label="Daily study activity over the last 12 months"></div>
+                  </div>
+                </div>
+              </section>
+            </section>
+
+            <section class="workspace-panel missions-panel" id="panelMissions" data-panel="missions"
+                     role="tabpanel" aria-labelledby="tabMissions" hidden>
+              <section class="card quest-card" aria-labelledby="questTitle">
+                <div class="card-head">
+                  <div class="card-title">
+                    <span class="kicker">Quest log</span>
+                    <h2 id="questTitle">Today's missions</h2>
+                  </div>
+                  <span class="meta-pill" id="todoMeta">0 open</span>
+                </div>
+
+                <div class="quest-progress" aria-hidden="true"><div class="quest-progress-fill" id="questProgressFill"></div></div>
+
+                <form class="add-row" id="todoForm" autocomplete="off">
+                  <div class="input-shell add-shell">
+                    <svg class="icon icon-sm" aria-hidden="true"><use href="#i-plus"></use></svg>
+                    <input type="text" id="todoInput" placeholder="Add a mission..." maxlength="200" />
+                  </div>
+                  <button class="add-btn" id="btnAddTodo" type="submit" title="Add mission" aria-label="Add mission">
+                    <svg class="icon icon-sm" aria-hidden="true"><use href="#i-plus"></use></svg>
+                  </button>
+                </form>
+
+                <ul class="task-list" id="todoList"></ul>
+
+                <div class="completed-block" id="completedBlock" hidden>
+                  <div class="completed-head">
+                    <button class="completed-toggle" id="completedToggle" aria-expanded="false">
+                      <svg class="icon icon-sm chevron" aria-hidden="true"><use href="#i-chevron"></use></svg>
+                      <span>Completed</span>
+                      <b id="completedCount">0</b>
+                    </button>
+                    <button class="subtle" id="btnClearDone" hidden>Clear all</button>
+                  </div>
+                  <ul class="task-list done-list" id="completedList" hidden></ul>
+                </div>
+              </section>
+            </section>
+
+            <section class="workspace-panel history-panel" id="panelHistory" data-panel="history"
+                     role="tabpanel" aria-labelledby="tabHistory" hidden>
+              <section class="card history-card" aria-labelledby="historyTitle">
+                <div class="card-head">
+                  <div class="card-title">
+                    <span class="kicker">Journal</span>
+                    <h2 id="historyTitle">History</h2>
+                  </div>
+                  <span class="meta-pill" id="historyMeta">0 sessions</span>
+                </div>
+                <div class="history-scroll" id="historyScroll">
+                  <ul class="history-list" id="historyList"></ul>
+                </div>
+              </section>
+            </section>
+          </div>
+        </section>
+      </main>
+    </div>
   </div>
+
+  <div class="toast-host" id="toastHost" aria-live="polite"></div>
+  <div class="confetti" id="confetti" aria-hidden="true"></div>
 
   <script src="dashboard.js"></script>
 </body>
