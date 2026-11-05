@@ -8,10 +8,43 @@ const state = {
   activity: { baseTotal: 0, baseActive: 0, todayBase: 0, todayCell: null }
 };
 
+/* Dark is the default theme — apply it before first paint so the premium
+   layout (not legacy's) is what renders while settings load. */
+document.documentElement.dataset.theme ||= 'dark';
+
 const $ = (id) => document.getElementById(id);
 
-const SUBJECT_PALETTE = ['#37ead0', '#8e74ff', '#ffc857', '#5cd9ff', '#ff6b8a', '#a8e86a', '#ff9f6b'];
-const CONFETTI_COLORS = ['#37ead0', '#5cd9ff', '#8e74ff', '#ffc857', '#ff6b8a', '#a8e86a'];
+/* Subject + confetti colors come from the active theme's CSS variables so
+   charts always match the current theme. Re-read after every theme change. */
+let subjectPalette = [];
+let confettiColors = [];
+
+function refreshThemePalettes() {
+  const styles = getComputedStyle(document.documentElement);
+  const read = (name) => (styles.getPropertyValue(name) || '').trim();
+  subjectPalette = [1, 2, 3, 4, 5, 6, 7].map((i) => read(`--subject-${i}`)).filter(Boolean);
+  confettiColors = [1, 2, 3, 4, 5, 6].map((i) => read(`--confetti-${i}`)).filter(Boolean);
+  if (!confettiColors.length) confettiColors = subjectPalette.slice(0, 6);
+}
+
+const THEME_OPTIONS = [
+  { value: 'dark', label: 'Dark', swatches: ['#1c1c21', '#e2a44b'] },
+  { value: 'light', label: 'Light', swatches: ['#ffffff', '#c98a2e'] },
+  { value: 'legacy', label: 'Legacy', swatches: ['#060811', '#37ead0'] }
+];
+
+function applyTheme(theme) {
+  if (!THEME_OPTIONS.some((t) => t.value === theme)) theme = 'dark';
+  document.documentElement.dataset.theme = theme;
+  refreshThemePalettes();
+}
+
+function syncThemeFromData(d) {
+  const theme = d?.settings?.theme || 'dark';
+  if ((document.documentElement.dataset.theme || 'dark') !== theme) {
+    applyTheme(theme);
+  }
+}
 
 /* ---------- Formatting ---------- */
 function fmtHMS(totalSeconds) {
@@ -88,12 +121,14 @@ function liveTodaySeconds() {
 }
 
 function subjectColor(subject) {
+  if (!subjectPalette.length) refreshThemePalettes();
+  const palette = subjectPalette;
   const subjects = state.data?.subjects || [];
   const idx = subjects.indexOf(subject);
-  if (idx >= 0) return SUBJECT_PALETTE[idx % SUBJECT_PALETTE.length];
+  if (idx >= 0) return palette[idx % palette.length];
   let hash = 0;
   for (let i = 0; i < subject.length; i += 1) hash = (hash * 31 + subject.charCodeAt(i)) | 0;
-  return SUBJECT_PALETTE[Math.abs(hash) % SUBJECT_PALETTE.length];
+  return palette[Math.abs(hash) % palette.length];
 }
 
 /* ---------- Little flourishes ---------- */
@@ -108,7 +143,7 @@ function celebrate() {
     piece.style.setProperty('--r1', `${Math.round(Math.random() * 900 - 450)}deg`);
     piece.style.setProperty('--dur', `${(1.8 + Math.random() * 1.1).toFixed(2)}s`);
     piece.style.setProperty('--delay', `${(Math.random() * 0.25).toFixed(2)}s`);
-    piece.style.setProperty('--c', CONFETTI_COLORS[i % CONFETTI_COLORS.length]);
+    piece.style.setProperty('--c', confettiColors[i % confettiColors.length]);
     host.appendChild(piece);
   }
   setTimeout(() => { host.innerHTML = ''; }, 3200);
@@ -119,6 +154,13 @@ function toast(message, opts = {}) {
   const host = $('toastHost');
   const node = document.createElement('div');
   node.className = `toast${opts.tone ? ` ${opts.tone}` : ''}`;
+
+  if (opts.icon) {
+    const icon = document.createElement('span');
+    icon.className = 'toast-icon';
+    icon.innerHTML = `<svg class="icon" aria-hidden="true"><use href="#${opts.icon}"></use></svg>`;
+    node.appendChild(icon);
+  }
 
   const msg = document.createElement('div');
   msg.className = 'toast-msg';
@@ -366,7 +408,7 @@ function renderGoal() {
   if (goal <= 0) {
     text.textContent = `${fmtMinutesShort(today)} today · no goal`;
   } else if (reached) {
-    text.textContent = `${fmtMinutesShort(today)} / ${fmtMinutesShort(goal)} ✓`;
+    text.textContent = `${fmtMinutesShort(today)} / ${fmtMinutesShort(goal)} — done`;
   } else {
     text.textContent = `${fmtMinutesShort(today)} / ${fmtMinutesShort(goal)}`;
   }
@@ -490,6 +532,8 @@ function renderFocusMix() {
     const color = subjectColor(item.subject);
     const row = document.createElement('div');
     row.className = 'mix-item';
+    row.style.setProperty('--row-c', color);
+    row.style.setProperty('--pct', `${total > 0 ? ((item.seconds / total) * 100).toFixed(1) : 0}%`);
     const dot = document.createElement('span');
     dot.className = 'mix-dot';
     dot.style.background = color;
@@ -1048,10 +1092,122 @@ $('goalMenu').addEventListener('keydown', (event) => {
 
 document.addEventListener('click', (event) => {
   if (!event.target.closest('#goalPicker')) closeGoalMenu();
+  if (!event.target.closest('#themePicker')) closeThemeMenu();
 });
 
 document.addEventListener('keydown', (event) => {
-  if (event.key === 'Escape') closeGoalMenu(true);
+  if (event.key === 'Escape') {
+    closeGoalMenu(true);
+    closeThemeMenu(true);
+  }
+});
+
+/* ---------- Theme picker ---------- */
+function renderThemeOptions() {
+  const host = $('themeOptions');
+  if (!host) return;
+  const current = document.documentElement.dataset.theme || 'dark';
+
+  host.innerHTML = '';
+  for (const option of THEME_OPTIONS) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'theme-option';
+    btn.dataset.themeValue = option.value;
+    btn.setAttribute('role', 'option');
+    btn.setAttribute('aria-selected', String(option.value === current));
+
+    const swatches = document.createElement('span');
+    swatches.className = 'theme-swatch';
+    swatches.setAttribute('aria-hidden', 'true');
+    for (const color of option.swatches) {
+      const dot = document.createElement('i');
+      dot.style.background = color;
+      swatches.appendChild(dot);
+    }
+
+    const name = document.createElement('span');
+    name.className = 'theme-name';
+    name.textContent = option.label;
+
+    const check = document.createElement('span');
+    check.className = 'theme-option-check';
+    check.setAttribute('aria-hidden', 'true');
+
+    btn.append(swatches, name, check);
+    btn.addEventListener('click', () => chooseTheme(option.value));
+    host.appendChild(btn);
+  }
+}
+
+function openThemeMenu() {
+  const menu = $('themeMenu');
+  const picker = $('themePicker');
+  const trigger = $('themeTrigger');
+  if (!menu || !picker || !trigger) return;
+
+  renderThemeOptions();
+  menu.hidden = false;
+  picker.classList.add('is-open');
+  trigger.setAttribute('aria-expanded', 'true');
+
+  const selected = menu.querySelector('.theme-option.is-selected') || menu.querySelector('.theme-option');
+  if (selected) selected.focus({ preventScroll: true });
+}
+
+function closeThemeMenu(focusTrigger = false) {
+  const menu = $('themeMenu');
+  const picker = $('themePicker');
+  const trigger = $('themeTrigger');
+  if (!menu || menu.hidden) return;
+
+  menu.hidden = true;
+  picker?.classList.remove('is-open');
+  trigger?.setAttribute('aria-expanded', 'false');
+  if (focusTrigger) trigger?.focus({ preventScroll: true });
+}
+
+function chooseTheme(value) {
+  closeThemeMenu(true);
+  window.api.setTheme(value);
+}
+
+$('themeTrigger').addEventListener('click', () => {
+  if ($('themeMenu').hidden) openThemeMenu();
+  else closeThemeMenu(true);
+});
+
+$('themeTrigger').addEventListener('keydown', (event) => {
+  if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+    event.preventDefault();
+    openThemeMenu();
+  }
+});
+
+$('themePicker').addEventListener('focusout', (event) => {
+  if (event.relatedTarget && $('themePicker').contains(event.relatedTarget)) return;
+  closeThemeMenu();
+});
+
+$('themeMenu').addEventListener('keydown', (event) => {
+  const options = [...$('themeOptions').querySelectorAll('.theme-option')];
+  if (!options.length) return;
+  const index = options.indexOf(document.activeElement);
+
+  if (event.key === 'Escape') {
+    event.preventDefault();
+    closeThemeMenu(true);
+    return;
+  }
+  if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
+
+  event.preventDefault();
+  let next = index;
+  if (event.key === 'ArrowDown') next = (index + 1) % options.length;
+  if (event.key === 'ArrowUp') next = (index - 1 + options.length) % options.length;
+  if (event.key === 'Home') next = 0;
+  if (event.key === 'End') next = options.length - 1;
+  options[next].focus({ preventScroll: true });
 });
 
 $('btnOverlay').addEventListener('click', () => window.api.toggleOverlay());
@@ -1066,6 +1222,7 @@ window.api.onTimerTick((payload) => {
 window.api.onDataUpdated((payload) => {
   state.data = payload.data;
   state.stats = payload.stats;
+  syncThemeFromData(payload.data);
   renderStats();
   renderTodos();
   renderHistory();
@@ -1080,14 +1237,15 @@ window.api.onLevelUp(({ level }) => {
   badge.classList.add('level-up');
   setTimeout(() => badge.classList.remove('level-up'), 800);
   celebrate();
-  toast(`Level ${level} reached! ⚡`, { tone: 'gold', timeout: 6000 });
+  toast(`Level ${level} reached`, { tone: 'gold', timeout: 6000, icon: 'i-zap' });
 });
 
 window.api.onGoalReached(({ goalMinutes }) => {
   celebrate();
-  toast(`Daily goal reached — ${fmtMinutesShort(goalMinutes * 60)} studied today. Nice 🎉`, {
+  toast(`Daily goal reached — ${fmtMinutesShort(goalMinutes * 60)} studied today. Nice`, {
     tone: 'gold',
-    timeout: 7000
+    timeout: 7000,
+    icon: 'i-target'
   });
 });
 
@@ -1102,5 +1260,6 @@ window.api.onGoalReached(({ goalMinutes }) => {
   state.data = res.data;
   state.stats = res.stats;
   state.timer = res.timer;
+  applyTheme(res.data?.settings?.theme || 'dark');
   renderAll();
 })();

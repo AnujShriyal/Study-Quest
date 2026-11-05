@@ -9,6 +9,7 @@ const MIN_SESSION_SECONDS = 5;              // ignore accidental sub-5-second se
 const MAX_RESTORE_MS = 12 * 60 * 60 * 1000; // never restore more than 12h of timer state
 const MAX_SUBJECT_LEN = 60;
 const MAX_TODO_LEN = 200;
+const THEMES = ['dark', 'light', 'legacy'];
 
 // ---------- Small helpers ----------
 function isObj(v) {
@@ -62,7 +63,8 @@ function defaultData() {
       overlayBounds: null,
       overlayVisible: true,
       dailyGoalMinutes: 120,
-      trayHintShown: false
+      trayHintShown: false,
+      theme: 'dark'
     },
     activeTimer: null // survives restarts/crashes (restored paused)
   };
@@ -142,7 +144,8 @@ function sanitizeData(raw) {
       overlayBounds: sanitizeBounds(settings.overlayBounds),
       overlayVisible: settings.overlayVisible !== false,
       dailyGoalMinutes: Math.round(num(settings.dailyGoalMinutes, 0, 720, base.settings.dailyGoalMinutes)),
-      trayHintShown: !!settings.trayHintShown
+      trayHintShown: !!settings.trayHintShown,
+      theme: THEMES.includes(settings.theme) ? settings.theme : 'dark'
     },
     activeTimer: sanitizeActiveTimer(raw.activeTimer)
   };
@@ -778,6 +781,16 @@ ipcMain.handle('goal:set', (_e, minutes) => {
   return { goalMinutes: data.settings.dailyGoalMinutes };
 });
 
+ipcMain.handle('theme:set', (_e, theme) => {
+  if (THEMES.includes(theme) && theme !== data.settings.theme) {
+    data.settings.theme = theme;
+    saveData();
+    syncNativeTheme();
+    broadcastData();
+  }
+  return { theme: data.settings.theme };
+});
+
 ipcMain.handle('overlay:toggle', () => toggleOverlay());
 ipcMain.handle('overlay:hide', () => { if (overlayWindow) overlayWindow.hide(); });
 ipcMain.handle('window:showDashboard', () => showDashboard());
@@ -799,6 +812,11 @@ ipcMain.handle('window:isMaximized', () =>
 ipcMain.handle('app:quit', () => { app.isQuiting = true; app.quit(); });
 
 // ---------- Lifecycle ----------
+function syncNativeTheme() {
+  // Native chrome (context menus, tooltips) follows the chosen theme.
+  nativeTheme.themeSource = data.settings.theme === 'light' ? 'light' : 'dark';
+}
+
 const gotSingleInstanceLock = app.requestSingleInstanceLock();
 
 if (!gotSingleInstanceLock) {
@@ -807,7 +825,7 @@ if (!gotSingleInstanceLock) {
   app.on('second-instance', () => showDashboard());
 
   app.whenReady().then(() => {
-    nativeTheme.themeSource = 'dark';
+    syncNativeTheme();
     restoreTimer();
 
     createMainWindow();

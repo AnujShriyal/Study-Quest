@@ -47,6 +47,21 @@ a compact always-on-top overlay keeps the timer within reach.
 - Streaks are calculated from saved sessions, so the current streak, longest
   streak, and "studied today" state are always accurate.
 
+### Themes
+
+- Three built-in themes, switchable from the half-circle button in the title bar
+  (keyboard navigable, Esc closes):
+  - **Dark** (default) — warm graphite surfaces with a single amber accent,
+    solid cards, hairline borders, and no glow or glass effects.
+  - **Light** — warm paper white with the same amber accent, darkened for
+    contrast.
+  - **Legacy** — the original neon teal/violet look, preserved exactly.
+- The choice is saved in the data file (`settings.theme`) and applied to both
+  the dashboard and the floating overlay instantly; charts, the heatmap, and
+  subject colors all re-tint to match the active theme.
+- UI text uses the bundled Inter variable font (`assets/fonts/`, SIL Open Font
+  License); the timer keeps the monospaced Cascadia font so digits never jitter.
+
 ### Dashboard
 
 - **Focus panel** — timer, daily goal picker, subject input, recent subject chips,
@@ -102,6 +117,11 @@ a compact always-on-top overlay keeps the timer within reach.
 
 - **Electron 31** — desktop shell and windows.
 - **Vanilla HTML, CSS, and JavaScript** — no frontend framework or bundler.
+- **CSS custom properties** — the whole visual system is token-based, with three
+  full themes (`:root` dark default, `[data-theme="light"]`,
+  `[data-theme="legacy"]`) in `renderer/theme.css`.
+- **Inter variable font** — bundled locally (`assets/fonts/InterVariable.woff2`,
+  SIL OFL 1.1); no font CDN is contacted.
 - **Node.js main process** — timer engine, IPC, tray, persistence, and stats.
 - **electron-builder + NSIS** — Windows installer generation.
 - **Local JSON storage** — no Firebase, Firestore, SQL, or remote API.
@@ -236,6 +256,7 @@ The data file contains:
 - Quest log items
 - Recent subjects
 - Daily goal and overlay settings
+- Chosen theme (`dark`, `light`, or `legacy`)
 - Overlay position and visibility
 - Active timer state used for crash/restart recovery
 - Streak metadata
@@ -344,6 +365,15 @@ Edit `levelFromXp()` in `main.js` to change how much XP each level requires.
 
 The default goal is 2 hours (`dailyGoalMinutes: 120`) in `defaultData()` in
 `main.js`. Preset targets are in `renderer/dashboard.html` inside `#goalSelect`.
+
+### Themes and colors
+
+All theme colors live as CSS custom properties in `renderer/theme.css`:
+dark is the `:root` default, light and legacy override it under
+`[data-theme="light"]` and `[data-theme="legacy"]`. Chart and subject colors are
+exposed as `--subject-1` … `--subject-7` and read by `renderer/dashboard.js`,
+so recoloring a theme automatically recolors the charts. Valid values for
+`settings.theme` are listed in `THEMES` in `main.js`.
 
 ### Overlay size
 

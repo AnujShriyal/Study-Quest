@@ -15,14 +15,9 @@ html, body {
   flex-direction: column;
   overflow: hidden;
   border-radius: 17px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background:
-    radial-gradient(240px 160px at 50% 4%, rgba(55, 234, 208, 0.13), transparent 70%),
-    radial-gradient(220px 180px at 100% 100%, rgba(142, 116, 255, 0.1), transparent 72%),
-    linear-gradient(180deg, rgba(23, 28, 51, 0.985), rgba(9, 12, 24, 0.985));
-  box-shadow:
-    0 22px 54px rgba(0, 0, 0, 0.55),
-    inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  border: 1px solid var(--overlay-border);
+  background: var(--overlay-card-bg);
+  box-shadow: var(--overlay-shadow);
 }
 .overlay-card::before {
   content: '';
@@ -31,7 +26,7 @@ html, body {
   left: 24%;
   right: 24%;
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.32), transparent);
+  background: var(--overlay-sheen);
   pointer-events: none;
 }
 
@@ -44,17 +39,17 @@ html, body {
   align-items: center;
   gap: 6px;
   padding: 0 7px 0 11px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.055);
-  background: rgba(6, 8, 17, 0.28);
+  border-bottom: 1px solid var(--line-soft);
+  background: var(--overlay-bar-bg);
   user-select: none;
 }
 .mini-logo {
   width: 11px;
   height: 12px;
   flex: none;
-  background: linear-gradient(140deg, #44f2d6, #8e74ff);
+  background: var(--logo-bg);
   clip-path: polygon(50% 0%, 94% 25%, 94% 75%, 50% 100%, 6% 75%, 6% 25%);
-  filter: drop-shadow(0 0 6px rgba(55, 234, 208, 0.35));
+  filter: var(--logo-glow);
 }
 .ov-brand {
   font-family: var(--display);
@@ -82,12 +77,12 @@ html, body {
 .ov-state.paused { color: var(--gold); }
 .dot.running {
   background: var(--teal);
-  box-shadow: 0 0 9px rgba(55, 234, 208, 0.9);
+  box-shadow: 0 0 9px var(--accent-glow-1);
   animation: pulse 1.7s ease-in-out infinite;
 }
 .dot.paused {
   background: var(--gold);
-  box-shadow: 0 0 7px rgba(255, 200, 87, 0.5);
+  box-shadow: 0 0 7px var(--gold-glow);
 }
 .ov-spacer { flex: 1; }
 .mini-btn {
@@ -101,7 +96,7 @@ html, body {
   color: var(--text-faint);
 }
 .mini-btn .icon { width: 12px; height: 12px; }
-.mini-btn:hover { color: var(--text); background: rgba(255, 255, 255, 0.07); }
+.mini-btn:hover { color: var(--text); background: var(--fill-70); }
 
 /* ---------- Timer ---------- */
 .timer-block {
@@ -115,9 +110,9 @@ html, body {
   font-weight: 600;
   line-height: 1;
   letter-spacing: 0.5px;
-  color: #f4f7ff;
+  color: var(--timer-text);
   font-variant-numeric: tabular-nums;
-  text-shadow: 0 0 24px rgba(55, 234, 208, 0.28);
+  text-shadow: var(--timer-glow-sm);
 }
 .mini-subject {
   height: 27px;
@@ -126,8 +121,8 @@ html, body {
   text-align: center;
   font-size: 10.5px;
   border-radius: 8px;
-  border-color: rgba(255, 255, 255, 0.075);
-  background: rgba(255, 255, 255, 0.03);
+  border-color: var(--line);
+  background: var(--fill-30);
 }
 .mini-subject:disabled {
   opacity: 1;
@@ -141,19 +136,19 @@ html, body {
 .mini-goal-track {
   height: 4px;
   border-radius: 99px;
-  background: rgba(255, 255, 255, 0.07);
+  background: var(--fill-70);
   overflow: hidden;
 }
 .mini-goal-fill {
   height: 100%;
   width: 0;
   border-radius: 99px;
-  background: linear-gradient(90deg, #37ead0, #5cd9ff);
+  background: var(--goal-fill-bg);
   transition: width 0.45s ease;
 }
 .mini-goal-fill.complete {
-  background: linear-gradient(90deg, #ffd36a, #ffad3d);
-  box-shadow: 0 0 10px rgba(255, 190, 70, 0.4);
+  background: var(--goal-fill-done);
+  box-shadow: var(--goal-fill-done-glow);
 }
 .mini-goal-text {
   margin-top: 4px;
@@ -184,11 +179,11 @@ html, body {
   height: 38px;
   padding-left: 33px;
   border-radius: 10px;
-  background: linear-gradient(135deg, #3cf0d2, #61dbff);
-  color: #04201d;
+  background: var(--ov-action-bg);
+  color: var(--ov-action-color);
   font-size: 11.5px;
   font-weight: 750;
-  box-shadow: 0 8px 22px rgba(55, 234, 208, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.45);
+  box-shadow: var(--ov-action-shadow);
 }
 #btnAction:hover { filter: brightness(1.05); }
 #btnAction::before {
@@ -212,13 +207,13 @@ html, body {
   display: grid;
   place-items: center;
   border-radius: 10px;
-  border: 1px solid rgba(255, 107, 138, 0.32);
-  background: rgba(255, 107, 138, 0.08);
+  border: 1px solid var(--rose-line-overlay);
+  background: var(--rose-fill);
   color: var(--rose);
 }
 .mini-stop:hover:not(:disabled) {
-  background: rgba(255, 107, 138, 0.17);
-  border-color: rgba(255, 107, 138, 0.5);
+  background: var(--rose-fill-strong);
+  border-color: var(--rose-line-strong);
 }
 
 /* ---------- Mission list ---------- */
@@ -229,8 +224,8 @@ html, body {
   display: flex;
   flex-direction: column;
   padding: 7px 12px 9px;
-  border-top: 1px solid rgba(255, 255, 255, 0.055);
-  background: rgba(0, 0, 0, 0.07);
+  border-top: 1px solid var(--line-soft);
+  background: var(--overlay-panel-bg);
 }
 .mini-todo-head {
   flex: none;
@@ -278,16 +273,16 @@ html, body {
   display: grid;
   place-items: center;
   border-radius: 4px;
-  border: 1.4px solid rgba(255, 255, 255, 0.17);
-  background: rgba(0, 0, 0, 0.2);
+  border: 1.4px solid var(--check-ring);
+  background: var(--overlay-check-bg);
   color: transparent;
 }
 .mini-check .icon { width: 8px; height: 8px; opacity: 0; }
-.mini-check:hover { border-color: rgba(55, 234, 208, 0.6); }
+.mini-check:hover { border-color: var(--accent-line-7); }
 .mini-todo li.done .mini-check {
   border-color: transparent;
-  background: linear-gradient(135deg, #3cf0d2, #5cd9ff);
-  color: #04201d;
+  background: var(--check-done-bg);
+  color: var(--check-done-color);
 }
 .mini-todo li.done .mini-check .icon { opacity: 1; }
 .mini-todo li span {
@@ -328,8 +323,8 @@ html, body {
   height: 27px;
   padding: 0 9px;
   border-radius: 7px;
-  border-color: rgba(255, 255, 255, 0.055);
-  background: rgba(255, 255, 255, 0.025);
+  border-color: var(--line-soft);
+  background: var(--fill-25);
   font-size: 10px;
 }
 .mini-add-row button {
@@ -339,8 +334,8 @@ html, body {
   display: grid;
   place-items: center;
   border-radius: 7px;
-  border: 1px solid rgba(55, 234, 208, 0.24);
-  background: rgba(55, 234, 208, 0.07);
+  border: 1px solid var(--accent-line-2);
+  background: var(--accent-fill-1);
   color: var(--teal);
 }
-.mini-add-row button:hover { background: rgba(55, 234, 208, 0.15); }
+.mini-add-row button:hover { background: var(--accent-fill-5); }

@@ -3,8 +3,9 @@
 <head>
 <meta charset="UTF-8" />
 <meta http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;" />
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'" />
 <title>Study Quest</title>
+<link rel="preload" href="../assets/fonts/InterVariable.woff2" as="font" type="font/woff2" crossorigin />
 <link rel="stylesheet" href="theme.css" />
 <link rel="stylesheet" href="dashboard.css" />
 </head>
@@ -82,6 +83,10 @@
       <symbol id="i-arrow-down" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
         <path d="M12 5v14M6.5 13.5 12 19l5.5-5.5"/>
       </symbol>
+      <symbol id="i-theme" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">
+        <circle cx="12" cy="12" r="8.5"/>
+        <path d="M12 3.5a8.5 8.5 0 0 1 0 17Z" fill="currentColor" stroke="none"/>
+      </symbol>
     </defs>
   </svg>
 
@@ -98,6 +103,19 @@
           <svg class="icon icon-sm" aria-hidden="true"><use href="#i-expand"></use></svg>
           <span>Floating timer</span>
         </button>
+        <div class="theme-picker" id="themePicker">
+          <button type="button" class="icon-btn theme-trigger" id="themeTrigger" title="Change theme"
+                  aria-label="Change theme" aria-haspopup="listbox" aria-expanded="false">
+            <svg class="icon" aria-hidden="true"><use href="#i-theme"></use></svg>
+          </button>
+          <div class="theme-menu" id="themeMenu" hidden>
+            <div class="goal-menu-head">
+              <span>Theme</span>
+              <span class="goal-menu-key">Esc</span>
+            </div>
+            <div class="theme-options" id="themeOptions" role="listbox" aria-label="Theme"></div>
+          </div>
+        </div>
         <div class="window-controls" id="windowControls">
           <button class="icon-btn win-btn" id="btnMinimize" title="Minimize" aria-label="Minimize">
             <svg class="icon icon-sm" aria-hidden="true"><use href="#i-minimize"></use></svg>
@@ -175,13 +193,13 @@
             <svg class="ring-svg" viewBox="0 0 240 240" aria-hidden="true">
               <defs>
                 <linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1">
-                  <stop offset="0" stop-color="#37ead0"/>
-                  <stop offset="0.65" stop-color="#5cd9ff"/>
-                  <stop offset="1" stop-color="#8e74ff"/>
+                  <stop offset="0" class="ring-stop-1"/>
+                  <stop offset="0.65" class="ring-stop-2"/>
+                  <stop offset="1" class="ring-stop-3"/>
                 </linearGradient>
                 <linearGradient id="ringGold" x1="0" y1="0" x2="1" y2="1">
-                  <stop offset="0" stop-color="#ffe08a"/>
-                  <stop offset="1" stop-color="#ffae3d"/>
+                  <stop offset="0" class="ring-stop-gold-1"/>
+                  <stop offset="1" class="ring-stop-gold-2"/>
                 </linearGradient>
               </defs>
               <circle class="ring-ticks" cx="120" cy="120" r="112" pathLength="100"/>

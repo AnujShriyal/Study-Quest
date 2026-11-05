@@ -1,7 +1,479 @@
 /* ==========================================================================
    Study Quest — shared visual system
+   Themes: dark (default) · light · legacy (the original neon look)
+   The active theme is `html[data-theme="dark|light|legacy"]`.
+   ========================================================================== */
+
+@font-face {
+  font-family: 'Inter';
+  src: url('../assets/fonts/InterVariable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ==========================================================================
+   THEME — DARK (default)
+   Warm neutral graphite with a single amber accent. No washes, no glass,
+   no glow — flat solid surfaces, hairline borders, soft depth.
    ========================================================================== */
 :root {
+  /* Base surfaces */
+  --bg: #151518;
+  --bg-soft: #17171b;
+  --surface: #1c1c21;
+  --surface-solid: #1c1c21;
+  --surface-2: #232329;
+  --surface-3: rgba(255, 255, 255, 0.045);
+  --line: rgba(255, 255, 255, 0.075);
+  --line-strong: rgba(255, 255, 255, 0.13);
+  --line-soft: rgba(255, 255, 255, 0.055);
+  --line-faint: rgba(255, 255, 255, 0.06);
+  --line-hover: rgba(255, 255, 255, 0.2);
+
+  /* Text */
+  --text: #ededea;
+  --text-strong: #f7f6f2;
+  --timer-text: #f5f4ef;
+  --text-muted: #a3a29b;
+  --text-faint: #6e6d66;
+
+  /* Primary accent (amber) */
+  --teal: #e2a44b;
+  --accent: #e2a44b;
+  --teal-soft: rgba(226, 164, 75, 0.14);
+  --cyan: #ebb564;
+  --violet: #8fa3c9;
+  --violet-soft: rgba(143, 163, 201, 0.14);
+  --violet-icon: #98abcf;
+
+  /* Semantic colors */
+  --gold: #d9a94e;
+  --gold-soft: rgba(217, 169, 78, 0.13);
+  --rose: #e5646e;
+  --rose-soft: rgba(229, 100, 110, 0.13);
+  --danger: var(--rose);
+  --danger-solid: #d64550;
+  --lime: #9dc08b;
+  --lime-soft: rgba(157, 192, 139, 0.13);
+
+  /* Accent alpha family (fills, borders, glows) */
+  --accent-fill-1: rgba(226, 164, 75, 0.07);
+  --accent-fill-2: rgba(226, 164, 75, 0.09);
+  --accent-fill-3: rgba(226, 164, 75, 0.11);
+  --accent-fill-4: rgba(226, 164, 75, 0.14);
+  --accent-fill-5: rgba(226, 164, 75, 0.2);
+  --accent-line-1: rgba(226, 164, 75, 0.24);
+  --accent-line-2: rgba(226, 164, 75, 0.28);
+  --accent-line-3: rgba(226, 164, 75, 0.32);
+  --accent-line-4: rgba(226, 164, 75, 0.45);
+  --accent-line-5: rgba(226, 164, 75, 0.48);
+  --accent-line-6: rgba(226, 164, 75, 0.58);
+  --accent-line-7: rgba(226, 164, 75, 0.62);
+  --accent-line-8: rgba(226, 164, 75, 0.66);
+  --accent-ring-1: rgba(226, 164, 75, 0.2);
+  --accent-wash: rgba(226, 164, 75, 0.1);
+  --focus-ring: rgba(226, 164, 75, 0.8);
+  --selection-bg: rgba(226, 164, 75, 0.25);
+  --input-ring: rgba(226, 164, 75, 0.12);
+  --input-ring-open: rgba(226, 164, 75, 0.1);
+  --accent-glow-1: rgba(226, 164, 75, 0.7);
+  --accent-glow-2: rgba(226, 164, 75, 0.35);
+  --accent-glow-3: rgba(226, 164, 75, 0.3);
+
+  /* Gold / rose alpha family */
+  --gold-line-soft: rgba(217, 169, 78, 0.3);
+  --gold-fill: rgba(217, 169, 78, 0.1);
+  --gold-glow: rgba(217, 169, 78, 0.4);
+  --rose-line-soft: rgba(229, 100, 110, 0.32);
+  --rose-line-overlay: rgba(229, 100, 110, 0.3);
+  --rose-line-strong: rgba(229, 100, 110, 0.5);
+  --rose-fill: rgba(229, 100, 110, 0.09);
+  --rose-fill-10: rgba(229, 100, 110, 0.1);
+  --rose-fill-strong: rgba(229, 100, 110, 0.16);
+  --rose-text-hover: #f6c9cd;
+
+  /* Page dressing — none in the premium themes */
+  --page-wash-1: none;
+  --page-wash-2: none;
+  --page-wash-3: none;
+  --dot-opacity: 0;
+  --glass-blur: none;
+  --glass-blur-sm: none;
+  --glass-blur-md: none;
+  --glass-blur-lg: none;
+
+  /* Cards & chrome */
+  --radius: 16px;
+  --titlebar-bg: #17171b;
+  --card-bg: #1c1c21;
+  --card-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 32px rgba(0, 0, 0, 0.22);
+  --card-sheen: transparent;
+  --stat-card-bg: #19191e;
+  --stat-card-inset: none;
+  --tabs-bg: #19191e;
+  --tabs-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  --tab-active-bg: linear-gradient(180deg, rgba(226, 164, 75, 0.13), rgba(226, 164, 75, 0.07));
+  --tab-active-shadow: inset 0 0 0 1px var(--accent-ring-1), 0 1px 2px rgba(0, 0, 0, 0.2);
+
+  /* Faint fills (hover states, badges, wells) */
+  --fill-22: rgba(255, 255, 255, 0.03);
+  --fill-25: rgba(255, 255, 255, 0.03);
+  --fill-28: rgba(255, 255, 255, 0.035);
+  --fill-30: rgba(255, 255, 255, 0.04);
+  --fill-35: rgba(255, 255, 255, 0.05);
+  --fill-45: rgba(255, 255, 255, 0.06);
+  --fill-50: rgba(255, 255, 255, 0.06);
+  --fill-55: rgba(255, 255, 255, 0.07);
+  --fill-60: rgba(255, 255, 255, 0.075);
+  --fill-70: rgba(255, 255, 255, 0.09);
+
+  /* Inputs & menus */
+  --input-bg: #19191e;
+  --input-bg-focus: #1e1e24;
+  --input-border-focus: rgba(226, 164, 75, 0.58);
+  --menu-bg: #232329;
+  --menu-shadow: 0 16px 48px rgba(0, 0, 0, 0.45);
+  --toast-bg: #232329;
+  --toast-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+
+  /* Primary button */
+  --btn-primary-bg: linear-gradient(180deg, #e9b057, #d9963b);
+  --btn-primary-bg-hover: linear-gradient(180deg, #efb963, #de9e42);
+  --btn-primary-color: #1f1809;
+  --btn-primary-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 20px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  --btn-primary-shadow-hover: 0 2px 4px rgba(0, 0, 0, 0.3), 0 10px 26px rgba(0, 0, 0, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.16);
+
+  /* Logo & level badge */
+  --logo-bg: linear-gradient(140deg, #edba62, #d0872a);
+  --logo-pupil: #221a0d;
+  --logo-glow: none;
+  --level-hex-bg: linear-gradient(145deg, #e9c87e, #d9963b 62%, #b57718);
+  --level-hex-glow: none;
+  --level-hex-inner-bg: #1c1c21;
+  --level-num: #e9c87e;
+  --level-num-glow: none;
+  --xp-track-bg: rgba(255, 255, 255, 0.09);
+  --xp-fill-bg: linear-gradient(90deg, #e2a44b, #efb963);
+
+  /* Focus card & timer ring */
+  --focus-card-bg: radial-gradient(340px 260px at 50% 20%, rgba(226, 164, 75, 0.05), transparent 65%), #1c1c21;
+  --focus-card-border: rgba(255, 255, 255, 0.09);
+  --focus-halo: transparent;
+  --ring-inner-glow: transparent;
+  --ring-ticks: rgba(255, 255, 255, 0.1);
+  --ring-track: rgba(255, 255, 255, 0.07);
+  --ring-glow: none;
+  --ring-gold-glow: none;
+  --timer-glow: none;
+  --timer-glow-sm: none;
+  --ring-stop-1: #e2a44b;
+  --ring-stop-2: #ebb564;
+  --ring-stop-3: #d9963b;
+  --ring-gold-1: #e9c87e;
+  --ring-gold-2: #d9a94e;
+
+  /* Week chart */
+  --bar-track-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.055));
+  --bar-fill-bg: linear-gradient(180deg, #ebb564, #c98a2e);
+  --bar-inset: inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  --bar-zero-bg: rgba(255, 255, 255, 0.08);
+  --bar-today-bg: linear-gradient(180deg, #e9c87e, #d9a94e);
+  --bar-today-shadow: none;
+  --bar-today-zero: rgba(217, 169, 78, 0.4);
+  --avg-line-color: rgba(255, 255, 255, 0.14);
+  --avg-label-bg: #232329;
+
+  /* Focus mix donut */
+  --mix-donut-glow: none;
+  --mix-hole: #17171b;
+  --mix-hole-shadow: none;
+
+  /* Heatmap */
+  --heat-0: rgba(255, 255, 255, 0.05);
+  --heat-cell-ring: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+  --heat-1: rgba(226, 164, 75, 0.26);
+  --heat-2: rgba(226, 164, 75, 0.46);
+  --heat-3: rgba(226, 164, 75, 0.7);
+  --heat-4: #e2a44b;
+  --heat-4-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14), 0 0 6px rgba(226, 164, 75, 0.2);
+  --heat-future: rgba(255, 255, 255, 0.03);
+  --heat-today-ring: 0 0 0 1.5px var(--gold), 0 0 8px rgba(217, 169, 78, 0.25);
+  --heat-hover-shadow: 0 0 0 1px rgba(255, 255, 255, 0.35), 0 0 10px rgba(226, 164, 75, 0.3);
+  --heat-today-hover: 0 0 0 1.5px var(--gold), 0 0 10px rgba(217, 169, 78, 0.35);
+
+  /* History */
+  --date-head-bg: linear-gradient(180deg, #1c1c21 67%, rgba(28, 28, 33, 0.92));
+
+  /* Checkboxes */
+  --check-ring: rgba(255, 255, 255, 0.18);
+  --option-check-ring: rgba(255, 255, 255, 0.16);
+  --check-bg: #16161a;
+  --check-done-bg: linear-gradient(135deg, #e9b057, #d0872a);
+  --check-done-color: #1f1809;
+  --check-done-glow: none;
+  --strike-color: rgba(163, 162, 155, 0.5);
+
+  /* Scrollbars */
+  --scrollbar-thumb: rgba(255, 255, 255, 0.14);
+  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.22);
+
+  /* Subject palette (muted, harmonious) */
+  --subject-1: #d9a05b;
+  --subject-2: #c97b6d;
+  --subject-3: #9dbb8f;
+  --subject-4: #8fa3c9;
+  --subject-5: #b493c9;
+  --subject-6: #d4c08a;
+  --subject-7: #7fb5ae;
+  --confetti-1: #d9a05b;
+  --confetti-2: #9dbb8f;
+  --confetti-3: #8fa3c9;
+  --confetti-4: #c97b6d;
+  --confetti-5: #d4c08a;
+  --confetti-6: #b493c9;
+
+  /* Overlay */
+  --overlay-card-bg: #1c1c21;
+  --overlay-border: rgba(255, 255, 255, 0.09);
+  --overlay-sheen: transparent;
+  --overlay-shadow: 0 18px 48px rgba(0, 0, 0, 0.5);
+  --overlay-bar-bg: rgba(0, 0, 0, 0.14);
+  --overlay-panel-bg: rgba(0, 0, 0, 0.16);
+  --overlay-check-bg: rgba(0, 0, 0, 0.25);
+  --goal-fill-bg: linear-gradient(90deg, #e2a44b, #ebb564);
+  --goal-fill-done: linear-gradient(90deg, #e9c87e, #d9a94e);
+  --goal-fill-done-glow: none;
+  --ov-action-bg: linear-gradient(180deg, #e9b057, #d9963b);
+  --ov-action-color: #1f1809;
+  --ov-action-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 6px 16px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.16);
+
+  /* Fonts */
+  --mono: 'Cascadia Mono', 'Cascadia Code', Consolas, 'SFMono-Regular', Menlo, monospace;
+  --sans: 'Inter', 'Segoe UI Variable Text', 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', sans-serif;
+  --display: 'Inter', 'Segoe UI Variable Display', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  color-scheme: dark;
+}
+
+/* ==========================================================================
+   THEME — LIGHT
+   Warm paper with the same amber accent, darkened for contrast.
+   ========================================================================== */
+[data-theme="light"] {
+  --bg: #f4f2ee;
+  --bg-soft: #edebe6;
+  --surface: #ffffff;
+  --surface-solid: #ffffff;
+  --surface-2: #faf9f6;
+  --surface-3: rgba(31, 29, 25, 0.045);
+  --line: rgba(31, 29, 25, 0.1);
+  --line-strong: rgba(31, 29, 25, 0.16);
+  --line-soft: rgba(31, 29, 25, 0.08);
+  --line-faint: rgba(31, 29, 25, 0.07);
+  --line-hover: rgba(31, 29, 25, 0.22);
+
+  --text: #1d1b17;
+  --text-strong: #14120e;
+  --timer-text: #1d1b17;
+  --text-muted: #6f6c63;
+  --text-faint: #a19d92;
+
+  --teal: #c98a2e;
+  --accent: #c98a2e;
+  --teal-soft: rgba(201, 138, 46, 0.14);
+  --cyan: #dda145;
+  --violet: #5b7ba6;
+  --violet-soft: rgba(91, 123, 166, 0.14);
+  --violet-icon: #5b7ba6;
+
+  --gold: #a87a1e;
+  --gold-soft: rgba(168, 122, 30, 0.13);
+  --rose: #c24248;
+  --rose-soft: rgba(194, 66, 72, 0.12);
+  --danger: var(--rose);
+  --danger-solid: #c13b3f;
+  --lime: #5e7f4e;
+  --lime-soft: rgba(94, 127, 78, 0.1);
+
+  --accent-fill-1: rgba(201, 138, 46, 0.08);
+  --accent-fill-2: rgba(201, 138, 46, 0.1);
+  --accent-fill-3: rgba(201, 138, 46, 0.12);
+  --accent-fill-4: rgba(201, 138, 46, 0.16);
+  --accent-fill-5: rgba(201, 138, 46, 0.22);
+  --accent-line-1: rgba(201, 138, 46, 0.28);
+  --accent-line-2: rgba(201, 138, 46, 0.32);
+  --accent-line-3: rgba(201, 138, 46, 0.38);
+  --accent-line-4: rgba(201, 138, 46, 0.5);
+  --accent-line-5: rgba(201, 138, 46, 0.55);
+  --accent-line-6: rgba(201, 138, 46, 0.62);
+  --accent-line-7: rgba(201, 138, 46, 0.66);
+  --accent-line-8: rgba(201, 138, 46, 0.7);
+  --accent-ring-1: rgba(201, 138, 46, 0.25);
+  --accent-wash: rgba(201, 138, 46, 0.12);
+  --focus-ring: rgba(176, 122, 32, 0.8);
+  --selection-bg: rgba(201, 138, 46, 0.22);
+  --input-ring: rgba(201, 138, 46, 0.13);
+  --input-ring-open: rgba(201, 138, 46, 0.11);
+  --accent-glow-1: rgba(176, 122, 32, 0.55);
+  --accent-glow-2: rgba(176, 122, 32, 0.35);
+  --accent-glow-3: rgba(176, 122, 32, 0.3);
+
+  --gold-line-soft: rgba(168, 122, 30, 0.32);
+  --gold-fill: rgba(168, 122, 30, 0.09);
+  --gold-glow: rgba(168, 122, 30, 0.4);
+  --rose-line-soft: rgba(194, 66, 72, 0.36);
+  --rose-line-overlay: rgba(194, 66, 72, 0.34);
+  --rose-line-strong: rgba(194, 66, 72, 0.52);
+  --rose-fill: rgba(194, 66, 72, 0.08);
+  --rose-fill-10: rgba(194, 66, 72, 0.1);
+  --rose-fill-strong: rgba(194, 66, 72, 0.16);
+  --rose-text-hover: #e8b4b7;
+
+  --dot-opacity: 0;
+  --glass-blur: none;
+  --glass-blur-sm: none;
+  --glass-blur-md: none;
+  --glass-blur-lg: none;
+
+  --radius: 16px;
+  --titlebar-bg: #f1efea;
+  --card-bg: #ffffff;
+  --card-shadow: 0 1px 2px rgba(28, 22, 12, 0.05), 0 10px 28px rgba(28, 22, 12, 0.06);
+  --card-sheen: transparent;
+  --stat-card-bg: #ffffff;
+  --stat-card-inset: none;
+  --tabs-bg: #ffffff;
+  --tabs-shadow: 0 1px 2px rgba(28, 22, 12, 0.05);
+  --tab-active-bg: linear-gradient(180deg, rgba(201, 138, 46, 0.14), rgba(201, 138, 46, 0.08));
+  --tab-active-shadow: inset 0 0 0 1px var(--accent-ring-1), 0 1px 2px rgba(28, 22, 12, 0.08);
+
+  --fill-22: rgba(31, 29, 25, 0.03);
+  --fill-25: rgba(31, 29, 25, 0.035);
+  --fill-28: rgba(31, 29, 25, 0.035);
+  --fill-30: rgba(31, 29, 25, 0.04);
+  --fill-35: rgba(31, 29, 25, 0.05);
+  --fill-45: rgba(31, 29, 25, 0.06);
+  --fill-50: rgba(31, 29, 25, 0.06);
+  --fill-55: rgba(31, 29, 25, 0.07);
+  --fill-60: rgba(31, 29, 25, 0.075);
+  --fill-70: rgba(31, 29, 25, 0.09);
+
+  --input-bg: #f7f5f1;
+  --input-bg-focus: #ffffff;
+  --input-border-focus: rgba(201, 138, 46, 0.62);
+  --menu-bg: #ffffff;
+  --menu-shadow: 0 12px 40px rgba(28, 22, 12, 0.14);
+  --toast-bg: #ffffff;
+  --toast-shadow: 0 12px 32px rgba(28, 22, 12, 0.12);
+
+  --btn-primary-bg: linear-gradient(180deg, #dda145, #c9892c);
+  --btn-primary-bg-hover: linear-gradient(180deg, #e2a84e, #d0912f);
+  --btn-primary-color: #231a09;
+  --btn-primary-shadow: 0 1px 2px rgba(28, 22, 12, 0.18), 0 6px 16px rgba(201, 138, 46, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  --btn-primary-shadow-hover: 0 2px 4px rgba(28, 22, 12, 0.18), 0 8px 20px rgba(201, 138, 46, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+
+  --logo-bg: linear-gradient(140deg, #dfa24e, #b57718);
+  --logo-pupil: #fff8ec;
+  --logo-glow: none;
+  --level-hex-bg: linear-gradient(145deg, #d9b266, #c9892c 62%, #9a6a14);
+  --level-hex-glow: none;
+  --level-hex-inner-bg: #ffffff;
+  --level-num: #9a6a14;
+  --level-num-glow: none;
+  --xp-track-bg: rgba(31, 29, 25, 0.1);
+  --xp-fill-bg: linear-gradient(90deg, #c98a2e, #dda145);
+
+  --focus-card-bg: radial-gradient(340px 260px at 50% 20%, rgba(201, 138, 46, 0.05), transparent 65%), #ffffff;
+  --focus-card-border: rgba(31, 29, 25, 0.12);
+  --focus-halo: transparent;
+  --ring-inner-glow: transparent;
+  --ring-ticks: rgba(31, 29, 25, 0.1);
+  --ring-track: rgba(31, 29, 25, 0.07);
+  --ring-glow: none;
+  --ring-gold-glow: none;
+  --timer-glow: none;
+  --timer-glow-sm: none;
+  --ring-stop-1: #c98a2e;
+  --ring-stop-2: #dda145;
+  --ring-stop-3: #b57718;
+  --ring-gold-1: #c9973b;
+  --ring-gold-2: #a87a1e;
+
+  --bar-track-bg: linear-gradient(180deg, rgba(31, 29, 25, 0.03), rgba(31, 29, 25, 0.055));
+  --bar-fill-bg: linear-gradient(180deg, #dda145, #b57718);
+  --bar-inset: inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  --bar-zero-bg: rgba(31, 29, 25, 0.1);
+  --bar-today-bg: linear-gradient(180deg, #d9b266, #b58a2e);
+  --bar-today-shadow: none;
+  --bar-today-zero: rgba(168, 122, 30, 0.4);
+  --avg-line-color: rgba(31, 29, 25, 0.15);
+  --avg-label-bg: #ffffff;
+
+  --mix-donut-glow: none;
+  --mix-hole: #f4f2ee;
+  --mix-hole-shadow: inset 0 1px 3px rgba(31, 29, 25, 0.06);
+
+  --heat-0: rgba(31, 29, 25, 0.06);
+  --heat-cell-ring: inset 0 0 0 1px rgba(31, 29, 25, 0.03);
+  --heat-1: rgba(176, 122, 32, 0.24);
+  --heat-2: rgba(176, 122, 32, 0.46);
+  --heat-3: rgba(176, 122, 32, 0.72);
+  --heat-4: #b07a20;
+  --heat-4-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2), 0 0 6px rgba(176, 122, 32, 0.2);
+  --heat-future: rgba(31, 29, 25, 0.03);
+  --heat-today-ring: 0 0 0 1.5px var(--gold), 0 0 8px rgba(168, 122, 30, 0.2);
+  --heat-hover-shadow: 0 0 0 1px rgba(31, 29, 25, 0.3), 0 0 10px rgba(176, 122, 32, 0.25);
+  --heat-today-hover: 0 0 0 1.5px var(--gold), 0 0 10px rgba(168, 122, 30, 0.3);
+
+  --date-head-bg: linear-gradient(180deg, #ffffff 67%, rgba(255, 255, 255, 0.92));
+
+  --check-ring: rgba(31, 29, 25, 0.22);
+  --option-check-ring: rgba(31, 29, 25, 0.18);
+  --check-bg: #f1efea;
+  --check-done-bg: linear-gradient(135deg, #dda145, #c9892c);
+  --check-done-color: #231a09;
+  --check-done-glow: none;
+  --strike-color: rgba(111, 108, 99, 0.45);
+
+  --scrollbar-thumb: rgba(31, 29, 25, 0.18);
+  --scrollbar-thumb-hover: rgba(31, 29, 25, 0.28);
+
+  --subject-1: #b07a2c;
+  --subject-2: #b5604f;
+  --subject-3: #6f9663;
+  --subject-4: #5b7ba6;
+  --subject-5: #9268b0;
+  --subject-6: #a98f4c;
+  --subject-7: #4e948b;
+  --confetti-1: #b07a2c;
+  --confetti-2: #6f9663;
+  --confetti-3: #5b7ba6;
+  --confetti-4: #b5604f;
+  --confetti-5: #a98f4c;
+  --confetti-6: #9268b0;
+
+  --overlay-card-bg: #ffffff;
+  --overlay-border: rgba(31, 29, 25, 0.12);
+  --overlay-sheen: transparent;
+  --overlay-shadow: 0 18px 44px rgba(28, 22, 12, 0.18);
+  --overlay-bar-bg: rgba(31, 29, 25, 0.03);
+  --overlay-panel-bg: rgba(31, 29, 25, 0.035);
+  --overlay-check-bg: rgba(31, 29, 25, 0.06);
+  --goal-fill-bg: linear-gradient(90deg, #c98a2e, #dda145);
+  --goal-fill-done: linear-gradient(90deg, #c9973b, #a87a1e);
+  --goal-fill-done-glow: none;
+  --ov-action-bg: linear-gradient(180deg, #dda145, #c9892c);
+  --ov-action-color: #231a09;
+  --ov-action-shadow: 0 1px 2px rgba(28, 22, 12, 0.18), 0 5px 14px rgba(201, 138, 46, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+
+  color-scheme: light;
+}
+
+/* ==========================================================================
+   THEME — LEGACY
+   The original neon look, kept exactly as it was.
+   ========================================================================== */
+[data-theme="legacy"] {
   --bg: #060811;
   --bg-soft: #0a0d1a;
   --surface: rgba(22, 27, 49, 0.76);
@@ -10,24 +482,215 @@
   --surface-3: rgba(255, 255, 255, 0.035);
   --line: rgba(255, 255, 255, 0.075);
   --line-strong: rgba(255, 255, 255, 0.13);
+  --line-soft: rgba(255, 255, 255, 0.055);
+  --line-faint: rgba(255, 255, 255, 0.06);
+  --line-hover: rgba(255, 255, 255, 0.2);
+
   --text: #f0f2ff;
+  --text-strong: #f6f7ff;
+  --timer-text: #f4f7ff;
   --text-muted: #9aa1c8;
   --text-faint: #686f94;
+
   --teal: #37ead0;
+  --accent: #37ead0;
   --teal-soft: rgba(55, 234, 208, 0.13);
   --cyan: #5cd9ff;
   --violet: #8e74ff;
   --violet-soft: rgba(142, 116, 255, 0.14);
+  --violet-icon: #a28cff;
+
   --gold: #ffc857;
   --gold-soft: rgba(255, 200, 87, 0.12);
   --rose: #ff6b8a;
   --rose-soft: rgba(255, 107, 138, 0.12);
   --danger: var(--rose);
+  --danger-solid: #e5485f;
   --lime: #a8e86a;
+  --lime-soft: rgba(168, 232, 106, 0.08);
+
+  --accent-fill-1: rgba(55, 234, 208, 0.07);
+  --accent-fill-2: rgba(55, 234, 208, 0.08);
+  --accent-fill-3: rgba(55, 234, 208, 0.09);
+  --accent-fill-4: rgba(55, 234, 208, 0.12);
+  --accent-fill-5: rgba(55, 234, 208, 0.16);
+  --accent-line-1: rgba(55, 234, 208, 0.2);
+  --accent-line-2: rgba(55, 234, 208, 0.24);
+  --accent-line-3: rgba(55, 234, 208, 0.28);
+  --accent-line-4: rgba(55, 234, 208, 0.42);
+  --accent-line-5: rgba(55, 234, 208, 0.45);
+  --accent-line-6: rgba(55, 234, 208, 0.55);
+  --accent-line-7: rgba(55, 234, 208, 0.6);
+  --accent-line-8: rgba(55, 234, 208, 0.65);
+  --accent-ring-1: rgba(55, 234, 208, 0.16);
+  --accent-wash: rgba(55, 234, 208, 0.13);
+  --focus-ring: rgba(55, 234, 208, 0.8);
+  --selection-bg: rgba(55, 234, 208, 0.25);
+  --input-ring: rgba(55, 234, 208, 0.1);
+  --input-ring-open: rgba(55, 234, 208, 0.07);
+  --accent-glow-1: rgba(55, 234, 208, 0.9);
+  --accent-glow-2: rgba(55, 234, 208, 0.4);
+  --accent-glow-3: rgba(55, 234, 208, 0.35);
+
+  --gold-line-soft: rgba(255, 200, 87, 0.25);
+  --gold-fill: rgba(255, 200, 87, 0.06);
+  --gold-glow: rgba(255, 190, 70, 0.5);
+  --rose-line-soft: rgba(255, 107, 138, 0.34);
+  --rose-line-overlay: rgba(255, 107, 138, 0.32);
+  --rose-line-strong: rgba(255, 107, 138, 0.55);
+  --rose-fill: rgba(255, 107, 138, 0.08);
+  --rose-fill-10: rgba(255, 107, 138, 0.1);
+  --rose-fill-strong: rgba(255, 107, 138, 0.18);
+  --rose-text-hover: #ffd9e1;
+
+  --page-wash-1: radial-gradient(920px 620px at 8% -12%, rgba(55, 234, 208, 0.13), transparent 62%);
+  --page-wash-2: radial-gradient(820px 560px at 102% -4%, rgba(142, 116, 255, 0.16), transparent 58%);
+  --page-wash-3: radial-gradient(760px 540px at 48% 118%, rgba(255, 200, 87, 0.055), transparent 64%);
+  --dot-opacity: 0.55;
+  --glass-blur: blur(20px);
+  --glass-blur-sm: blur(10px);
+  --glass-blur-md: blur(14px);
+  --glass-blur-lg: blur(18px);
+
   --radius: 20px;
+  --titlebar-bg: rgba(6, 8, 17, 0.58);
+  --card-bg: linear-gradient(180deg, rgba(27, 32, 58, 0.78), rgba(12, 15, 29, 0.9));
+  --card-shadow: 0 28px 70px rgba(0, 0, 0, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.055);
+  --card-sheen: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.24), transparent);
+  --stat-card-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.042), rgba(255, 255, 255, 0.018));
+  --stat-card-inset: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  --tabs-bg: linear-gradient(180deg, rgba(24, 29, 53, 0.82), rgba(12, 15, 29, 0.9));
+  --tabs-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 8px 24px rgba(0, 0, 0, 0.12);
+  --tab-active-bg: radial-gradient(120% 150% at 50% 0%, rgba(55, 234, 208, 0.13), transparent 68%), rgba(255, 255, 255, 0.045);
+  --tab-active-shadow: inset 0 0 0 1px rgba(55, 234, 208, 0.16), 0 6px 16px rgba(0, 0, 0, 0.12);
+
+  --fill-22: rgba(255, 255, 255, 0.022);
+  --fill-25: rgba(255, 255, 255, 0.025);
+  --fill-28: rgba(255, 255, 255, 0.028);
+  --fill-30: rgba(255, 255, 255, 0.03);
+  --fill-35: rgba(255, 255, 255, 0.035);
+  --fill-45: rgba(255, 255, 255, 0.045);
+  --fill-50: rgba(255, 255, 255, 0.05);
+  --fill-55: rgba(255, 255, 255, 0.055);
+  --fill-60: rgba(255, 255, 255, 0.06);
+  --fill-70: rgba(255, 255, 255, 0.07);
+
+  --input-bg: rgba(6, 8, 17, 0.48);
+  --input-bg-focus: rgba(6, 8, 17, 0.66);
+  --input-border-focus: rgba(55, 234, 208, 0.55);
+  --menu-bg: linear-gradient(180deg, rgba(30, 36, 65, 0.98), rgba(12, 15, 29, 0.99));
+  --menu-shadow: 0 22px 60px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  --toast-bg: linear-gradient(180deg, rgba(33, 39, 70, 0.98), rgba(20, 24, 46, 0.98));
+  --toast-shadow: 0 18px 44px rgba(0, 0, 0, 0.5);
+
+  --btn-primary-bg: linear-gradient(135deg, #3cf0d2 0%, #61dbff 100%);
+  --btn-primary-bg-hover: linear-gradient(135deg, #3cf0d2 0%, #61dbff 100%);
+  --btn-primary-color: #04201d;
+  --btn-primary-shadow: 0 10px 28px rgba(55, 234, 208, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  --btn-primary-shadow-hover: 0 14px 34px rgba(55, 234, 208, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+
+  --logo-bg: linear-gradient(140deg, #44f2d6 8%, #5cd9ff 52%, #9278ff 100%);
+  --logo-pupil: #071018;
+  --logo-glow: drop-shadow(0 0 9px rgba(55, 234, 208, 0.32));
+  --level-hex-bg: linear-gradient(145deg, #ffd97a, #ffae3d 62%, #d97a1c);
+  --level-hex-glow: drop-shadow(0 0 10px rgba(255, 190, 70, 0.24));
+  --level-hex-inner-bg: #10142a;
+  --level-num: #ffd171;
+  --level-num-glow: 0 0 14px rgba(255, 190, 70, 0.35);
+  --xp-track-bg: rgba(255, 255, 255, 0.08);
+  --xp-fill-bg: linear-gradient(90deg, #ffc857, #ffe29a);
+
+  --focus-card-bg: radial-gradient(340px 260px at 50% 20%, rgba(55, 234, 208, 0.08), transparent 65%), linear-gradient(180deg, rgba(27, 32, 58, 0.82), rgba(11, 14, 28, 0.94));
+  --focus-card-border: rgba(255, 255, 255, 0.085);
+  --focus-halo: radial-gradient(circle, rgba(55, 234, 208, 0.11), transparent 66%);
+  --ring-inner-glow: radial-gradient(circle, rgba(55, 234, 208, 0.13), transparent 68%);
+  --ring-ticks: rgba(255, 255, 255, 0.09);
+  --ring-track: rgba(255, 255, 255, 0.055);
+  --ring-glow: drop-shadow(0 0 7px rgba(55, 234, 208, 0.4));
+  --ring-gold-glow: drop-shadow(0 0 9px rgba(255, 190, 70, 0.5));
+  --timer-glow: 0 0 30px rgba(55, 234, 208, 0.3);
+  --timer-glow-sm: 0 0 24px rgba(55, 234, 208, 0.28);
+  --ring-stop-1: #37ead0;
+  --ring-stop-2: #5cd9ff;
+  --ring-stop-3: #8e74ff;
+  --ring-gold-1: #ffe08a;
+  --ring-gold-2: #ffae3d;
+
+  --bar-track-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.022), rgba(255, 255, 255, 0.045));
+  --bar-fill-bg: linear-gradient(180deg, #45f2d7 0%, #20a69a 100%);
+  --bar-inset: inset 0 1px 0 rgba(255, 255, 255, 0.28);
+  --bar-zero-bg: rgba(255, 255, 255, 0.1);
+  --bar-today-bg: linear-gradient(180deg, #ffe08a 0%, #ffb23f 100%);
+  --bar-today-shadow: 0 0 14px rgba(255, 190, 70, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.45);
+  --bar-today-zero: rgba(255, 200, 87, 0.35);
+  --avg-line-color: rgba(255, 255, 255, 0.14);
+  --avg-label-bg: #151a30;
+
+  --mix-donut-glow: 0 0 24px rgba(55, 234, 208, 0.08);
+  --mix-hole: #12162b;
+  --mix-hole-shadow: inset 0 0 12px rgba(0, 0, 0, 0.35);
+
+  --heat-0: rgba(255, 255, 255, 0.055);
+  --heat-cell-ring: inset 0 0 0 1px rgba(255, 255, 255, 0.015);
+  --heat-1: rgba(55, 234, 208, 0.2);
+  --heat-2: rgba(55, 234, 208, 0.38);
+  --heat-3: rgba(55, 234, 208, 0.62);
+  --heat-4: #37ead0;
+  --heat-4-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.24), 0 0 6px rgba(55, 234, 208, 0.3);
+  --heat-future: rgba(255, 255, 255, 0.025);
+  --heat-today-ring: 0 0 0 1.5px #ffc857, 0 0 8px rgba(255, 200, 87, 0.34);
+  --heat-hover-shadow: 0 0 0 1px rgba(255, 255, 255, 0.38), 0 0 10px rgba(55, 234, 208, 0.4);
+  --heat-today-hover: 0 0 0 1.5px #ffc857, 0 0 10px rgba(255, 200, 87, 0.5);
+
+  --date-head-bg: linear-gradient(180deg, #151a30 67%, rgba(21, 26, 48, 0.92));
+
+  --check-ring: rgba(255, 255, 255, 0.18);
+  --option-check-ring: rgba(255, 255, 255, 0.14);
+  --check-bg: rgba(6, 8, 17, 0.35);
+  --check-done-bg: linear-gradient(135deg, #3cf0d2, #5cd9ff);
+  --check-done-color: #04201d;
+  --check-done-glow: 0 0 10px rgba(55, 234, 208, 0.22);
+  --strike-color: rgba(154, 161, 200, 0.45);
+
+  --scrollbar-thumb: rgba(255, 255, 255, 0.12);
+  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.2);
+
+  --subject-1: #37ead0;
+  --subject-2: #8e74ff;
+  --subject-3: #ffc857;
+  --subject-4: #5cd9ff;
+  --subject-5: #ff6b8a;
+  --subject-6: #a8e86a;
+  --subject-7: #ff9f6b;
+  --confetti-1: #37ead0;
+  --confetti-2: #5cd9ff;
+  --confetti-3: #8e74ff;
+  --confetti-4: #ffc857;
+  --confetti-5: #ff6b8a;
+  --confetti-6: #a8e86a;
+
+  --overlay-card-bg:
+    radial-gradient(240px 160px at 50% 4%, rgba(55, 234, 208, 0.13), transparent 70%),
+    radial-gradient(220px 180px at 100% 100%, rgba(142, 116, 255, 0.1), transparent 72%),
+    linear-gradient(180deg, rgba(23, 28, 51, 0.985), rgba(9, 12, 24, 0.985));
+  --overlay-border: rgba(255, 255, 255, 0.12);
+  --overlay-sheen: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.32), transparent);
+  --overlay-shadow: 0 22px 54px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  --overlay-bar-bg: rgba(6, 8, 17, 0.28);
+  --overlay-panel-bg: rgba(0, 0, 0, 0.07);
+  --overlay-check-bg: rgba(0, 0, 0, 0.2);
+  --goal-fill-bg: linear-gradient(90deg, #37ead0, #5cd9ff);
+  --goal-fill-done: linear-gradient(90deg, #ffd36a, #ffad3d);
+  --goal-fill-done-glow: 0 0 10px rgba(255, 190, 70, 0.4);
+  --ov-action-bg: linear-gradient(135deg, #3cf0d2, #61dbff);
+  --ov-action-color: #04201d;
+  --ov-action-shadow: 0 8px 22px rgba(55, 234, 208, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.45);
+
+  /* Legacy also keeps the original system fonts — Inter is part of the new look. */
   --mono: 'Cascadia Mono', 'Cascadia Code', Consolas, 'SFMono-Regular', Menlo, monospace;
   --sans: 'Segoe UI Variable Text', 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', sans-serif;
   --display: 'Segoe UI Variable Display', 'Segoe UI', system-ui, -apple-system, sans-serif;
+
   color-scheme: dark;
 }
 
@@ -43,9 +706,9 @@ body {
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   background:
-    radial-gradient(920px 620px at 8% -12%, rgba(55, 234, 208, 0.13), transparent 62%),
-    radial-gradient(820px 560px at 102% -4%, rgba(142, 116, 255, 0.16), transparent 58%),
-    radial-gradient(760px 540px at 48% 118%, rgba(255, 200, 87, 0.055), transparent 64%),
+    var(--page-wash-1),
+    var(--page-wash-2),
+    var(--page-wash-3),
     var(--bg);
   overflow: hidden;
 }
@@ -69,11 +732,11 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
 button:focus-visible,
 input:focus-visible,
 select:focus-visible {
-  outline: 2px solid rgba(55, 234, 208, 0.8);
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
 
-::selection { background: rgba(55, 234, 208, 0.25); }
+::selection { background: var(--selection-bg); }
 
 /* ---------- Icons ---------- */
 .icon {
@@ -104,7 +767,7 @@ select:focus-visible {
   padding: 0;
   margin: -1px;
   overflow: hidden;
-  clip: rect(0, 0, 0, 0);
+  clip: rect(0 0 0 0);
   white-space: nowrap;
   border: 0;
 }
@@ -116,11 +779,8 @@ select:focus-visible {
   min-height: 0;
   border-radius: var(--radius);
   border: 1px solid var(--line);
-  background:
-    linear-gradient(180deg, rgba(27, 32, 58, 0.78), rgba(12, 15, 29, 0.9));
-  box-shadow:
-    0 28px 70px rgba(0, 0, 0, 0.34),
-    inset 0 1px 0 rgba(255, 255, 255, 0.055);
+  background: var(--card-bg);
+  box-shadow: var(--card-shadow);
 }
 .card::before {
   content: '';
@@ -129,7 +789,7 @@ select:focus-visible {
   left: 22%;
   right: 22%;
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.24), transparent);
+  background: var(--card-sheen);
   pointer-events: none;
 }
 
@@ -160,7 +820,7 @@ select:focus-visible {
   padding: 0 9px;
   border-radius: 8px;
   border: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.035);
+  background: var(--fill-35);
   color: var(--text-muted);
   font-family: var(--mono);
   font-size: 9.5px;
@@ -176,21 +836,18 @@ select:focus-visible {
   height: 46px;
   padding: 0 20px;
   border-radius: 13px;
-  background: linear-gradient(135deg, #3cf0d2 0%, #61dbff 100%);
-  color: #04201d;
+  background: var(--btn-primary-bg);
+  color: var(--btn-primary-color);
   font-size: 13px;
   font-weight: 750;
   letter-spacing: 0.15px;
-  box-shadow:
-    0 10px 28px rgba(55, 234, 208, 0.22),
-    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  box-shadow: var(--btn-primary-shadow);
 }
 .btn-primary:hover:not(:disabled) {
   filter: brightness(1.055);
   transform: translateY(-1px);
-  box-shadow:
-    0 14px 34px rgba(55, 234, 208, 0.28),
-    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  background: var(--btn-primary-bg-hover);
+  box-shadow: var(--btn-primary-shadow-hover);
 }
 .btn-primary .icon { width: 17px; height: 17px; }
 
@@ -203,23 +860,23 @@ select:focus-visible {
   flex: none;
   border-radius: 13px;
   border: 1px solid var(--line-strong);
-  background: rgba(255, 255, 255, 0.035);
+  background: var(--fill-35);
   color: var(--text-muted);
 }
 .btn-icon:hover:not(:disabled) {
   color: var(--text);
-  background: rgba(255, 255, 255, 0.07);
+  background: var(--fill-70);
   border-color: var(--line-strong);
 }
 .btn-stop {
   color: var(--rose);
-  border-color: rgba(255, 107, 138, 0.34);
-  background: rgba(255, 107, 138, 0.08);
+  border-color: var(--rose-line-soft);
+  background: var(--rose-fill);
 }
 .btn-stop:hover:not(:disabled) {
-  color: #ffd9e1;
-  background: rgba(255, 107, 138, 0.18);
-  border-color: rgba(255, 107, 138, 0.55);
+  color: var(--rose-text-hover);
+  background: var(--rose-fill-strong);
+  border-color: var(--rose-line-strong);
 }
 
 .btn-ghost {
@@ -231,12 +888,12 @@ select:focus-visible {
   padding: 0 11px;
   border-radius: 9px;
   border: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.025);
+  background: var(--fill-25);
   color: var(--text-muted);
   font-size: 11px;
   font-weight: 650;
 }
-.btn-ghost:hover { color: var(--text); background: rgba(255, 255, 255, 0.06); }
+.btn-ghost:hover { color: var(--text); background: var(--fill-60); }
 
 .subtle {
   display: inline-flex;
@@ -248,7 +905,7 @@ select:focus-visible {
   font-size: 10px;
   font-weight: 650;
 }
-.subtle:hover { color: var(--text); background: rgba(255, 255, 255, 0.05); }
+.subtle:hover { color: var(--text); background: var(--fill-50); }
 
 .icon-btn {
   display: inline-flex;
@@ -260,7 +917,7 @@ select:focus-visible {
   color: var(--text-faint);
   background: transparent;
 }
-.icon-btn:hover { color: var(--text); background: rgba(255, 255, 255, 0.06); }
+.icon-btn:hover { color: var(--text); background: var(--fill-60); }
 
 /* ---------- Inputs ---------- */
 input[type="text"] {
@@ -269,7 +926,7 @@ input[type="text"] {
   padding: 0 13px;
   border-radius: 12px;
   border: 1px solid var(--line);
-  background: rgba(6, 8, 17, 0.48);
+  background: var(--input-bg);
   color: var(--text);
   font-family: var(--sans);
   font-size: 13px;
@@ -279,9 +936,9 @@ input[type="text"] {
 input[type="text"]::placeholder { color: var(--text-faint); }
 input[type="text"]:hover { border-color: var(--line-strong); }
 input[type="text"]:focus {
-  border-color: rgba(55, 234, 208, 0.55);
-  background: rgba(6, 8, 17, 0.66);
-  box-shadow: 0 0 0 3px rgba(55, 234, 208, 0.1);
+  border-color: var(--input-border-focus);
+  background: var(--input-bg-focus);
+  box-shadow: 0 0 0 3px var(--input-ring);
 }
 input[type="text"]:disabled {
   opacity: 1;
@@ -297,8 +954,8 @@ select {
   padding: 0 28px 0 10px;
   border-radius: 9px;
   border: 1px solid var(--line);
-  background-color: rgba(255, 255, 255, 0.035);
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' fill='none' stroke='%239aa1c8' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+  background-color: var(--fill-35);
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' fill='none' stroke='%23a3a29b' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/></svg>");
   background-repeat: no-repeat;
   background-position: right 10px center;
   color: var(--text-muted);
@@ -310,7 +967,13 @@ select {
   transition: border-color 0.16s ease, color 0.16s ease, background-color 0.16s ease;
 }
 select:hover { color: var(--text); border-color: var(--line-strong); }
-select:focus { border-color: rgba(55, 234, 208, 0.55); }
+select:focus { border-color: var(--input-border-focus); }
+[data-theme="legacy"] select {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' fill='none' stroke='%239aa1c8' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+}
+[data-theme="light"] select {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' fill='none' stroke='%236f6c63' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+}
 
 .input-shell {
   position: relative;
@@ -337,7 +1000,7 @@ select:focus { border-color: rgba(55, 234, 208, 0.55); }
   padding: 0 9px;
   border-radius: 7px;
   border: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--fill-30);
   color: var(--text-muted);
   font-size: 10px;
   font-weight: 600;
@@ -347,8 +1010,8 @@ select:focus { border-color: rgba(55, 234, 208, 0.55); }
 }
 .chip:hover:not(:disabled) {
   color: var(--text);
-  border-color: rgba(55, 234, 208, 0.28);
-  background: rgba(55, 234, 208, 0.07);
+  border-color: var(--accent-line-3);
+  background: var(--accent-fill-1);
 }
 
 /* ---------- Empty state ---------- */
@@ -388,10 +1051,10 @@ select:focus { border-color: rgba(55, 234, 208, 0.55); }
   border-radius: 12px;
   border: 1px solid var(--line-strong);
   border-left: 2px solid var(--teal);
-  background: linear-gradient(180deg, rgba(33, 39, 70, 0.98), rgba(20, 24, 46, 0.98));
+  background: var(--toast-bg);
   color: var(--text);
   font-size: 12px;
-  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--toast-shadow);
   opacity: 0;
   transform: translateY(10px) scale(0.985);
   transition: opacity 0.2s ease, transform 0.2s ease;
@@ -400,6 +1063,25 @@ select:focus { border-color: rgba(55, 234, 208, 0.55); }
 .toast.show { opacity: 1; transform: none; }
 .toast.gold { border-left-color: var(--gold); }
 .toast.danger { border-left-color: var(--rose); }
+.toast .toast-icon {
+  width: 26px;
+  height: 26px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  color: var(--teal);
+  background: var(--teal-soft);
+}
+.toast.gold .toast-icon {
+  color: var(--gold);
+  background: var(--gold-soft);
+}
+.toast.danger .toast-icon {
+  color: var(--rose);
+  background: var(--rose-soft);
+}
+.toast .toast-icon .icon { width: 14px; height: 14px; }
 .toast .toast-msg { flex: 1; line-height: 1.4; }
 .toast .toast-action {
   padding: 5px 8px;
@@ -436,9 +1118,16 @@ select:focus { border-color: rgba(55, 234, 208, 0.55); }
 
 /* ---------- Scrollbars ---------- */
 ::-webkit-scrollbar { width: 5px; height: 5px; }
-::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.12); border-radius: 99px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.2); }
+::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
 ::-webkit-scrollbar-track { background: transparent; }
+
+/* ---------- SVG timer ring stops ---------- */
+.ring-stop-1 { stop-color: var(--ring-stop-1); }
+.ring-stop-2 { stop-color: var(--ring-stop-2); }
+.ring-stop-3 { stop-color: var(--ring-stop-3); }
+.ring-stop-gold-1 { stop-color: var(--ring-gold-1); }
+.ring-stop-gold-2 { stop-color: var(--ring-gold-2); }
 
 /* ---------- Motion ---------- */
 @keyframes pulse {

@@ -19,6 +19,7 @@ contextBridge.exposeInMainWorld('api', {
   restoreSession: (session) => ipcRenderer.invoke('session:restore', session),
 
   setGoal: (minutes) => ipcRenderer.invoke('goal:set', minutes),
+  setTheme: (theme) => ipcRenderer.invoke('theme:set', theme),
 
   toggleOverlay: () => ipcRenderer.invoke('overlay:toggle'),
   hideOverlay: () => ipcRenderer.invoke('overlay:hide'),
