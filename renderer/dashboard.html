@@ -87,6 +87,16 @@
         <circle cx="12" cy="12" r="8.5"/>
         <path d="M12 3.5a8.5 8.5 0 0 1 0 17Z" fill="currentColor" stroke="none"/>
       </symbol>
+      <symbol id="i-users" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="9" cy="8" r="3.4"/>
+        <path d="M3.5 19.5c.4-2.9 2.7-4.6 5.5-4.6s5.1 1.7 5.5 4.6"/>
+        <path d="M16 5.8a3.4 3.4 0 0 1 0 4.4"/>
+        <path d="M17.6 15.1c1.7.7 2.7 2.2 2.9 4.4"/>
+      </symbol>
+      <symbol id="i-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="9" y="9" width="11" height="11" rx="2.2"/>
+        <path d="M5.5 14.5A1.5 1.5 0 0 1 4 13V5.5A1.5 1.5 0 0 1 5.5 4H13a1.5 1.5 0 0 1 1.5 1.5"/>
+      </symbol>
     </defs>
   </svg>
 
@@ -286,6 +296,11 @@
               <span>History</span>
               <b class="tab-badge" id="historyTabBadge" hidden>0</b>
             </button>
+            <button class="workspace-tab" id="tabFriends" data-tab="friends"
+                    role="tab" aria-selected="false" aria-controls="panelFriends" tabindex="-1">
+              <svg class="icon" aria-hidden="true"><use href="#i-users"></use></svg>
+              <span>Friends</span>
+            </button>
           </nav>
 
           <div class="workspace-panels">
@@ -412,6 +427,71 @@
                 </div>
                 <div class="history-scroll" id="historyScroll">
                   <ul class="history-list" id="historyList"></ul>
+                </div>
+              </section>
+            </section>
+
+            <section class="workspace-panel friends-panel" id="panelFriends" data-panel="friends"
+                     role="tabpanel" aria-labelledby="tabFriends" hidden>
+              <section class="card friends-card" aria-labelledby="friendsTitle">
+                <div class="card-head">
+                  <div class="card-title">
+                    <span class="kicker">Quest party</span>
+                    <h2 id="friendsTitle">Friends</h2>
+                  </div>
+                  <div class="friends-room" id="friendsRoom" hidden>
+                    <span class="meta-pill mono" id="roomCodePill">------</span>
+                    <button class="icon-btn" id="btnCopyRoom" title="Copy room code" aria-label="Copy room code">
+                      <svg class="icon icon-sm" aria-hidden="true"><use href="#i-copy"></use></svg>
+                    </button>
+                  </div>
+                </div>
+
+                <div class="friends-setup" id="friendsSetup" hidden>
+                  <p class="friends-explain">
+                    No account, no signup — one friend creates a room and shares the code.
+                    Everyone in the room sees today's time, weekly time, streak, and level.
+                    Your sessions and missions stay on your machine.
+                  </p>
+                  <div class="friends-field">
+                    <label class="field-label" for="friendName">Display name</label>
+                    <input type="text" id="friendName" maxlength="24" autocomplete="off"
+                           spellcheck="false" placeholder="What should friends call you?" />
+                  </div>
+                  <div class="friends-setup-actions">
+                    <button class="btn-primary friends-create" id="btnCreateRoom">Create a room</button>
+                    <div class="friends-join">
+                      <input type="text" id="friendCode" class="friends-code" maxlength="7"
+                             autocomplete="off" spellcheck="false" placeholder="CODE"
+                             aria-label="Room code" />
+                      <button class="btn-ghost" id="btnJoinRoom">Join</button>
+                    </div>
+                  </div>
+                  <div class="friends-field" id="friendsServerRow" hidden>
+                    <label class="field-label" for="friendServer">Sync server URL</label>
+                    <input type="text" id="friendServer" autocomplete="off" spellcheck="false"
+                           placeholder="https://study-quest-sync.your-subdomain.workers.dev" />
+                  </div>
+                  <p class="friends-error" id="friendsError" hidden></p>
+                </div>
+
+                <div class="friends-board" id="friendsBoard" hidden>
+                  <div class="friends-board-head">
+                    <div class="friends-sort" role="group" aria-label="Sort leaderboard">
+                      <button type="button" id="sortToday" class="is-active">Today</button>
+                      <button type="button" id="sortWeek">This week</button>
+                    </div>
+                    <span class="friends-synced mono" id="friendsSynced">—</span>
+                  </div>
+                  <div class="friends-cols" aria-hidden="true">
+                    <span></span><span>Friend</span><span class="num">Today</span>
+                    <span class="num">Week</span><span class="num">Streak</span><span class="num">Lvl</span>
+                  </div>
+                  <ol class="friends-list" id="friendsList"></ol>
+                  <div class="friends-foot">
+                    <button type="button" class="subtle" id="btnRefreshFriends">Refresh</button>
+                    <button type="button" class="subtle" id="btnLeaveRoom">Leave room</button>
+                  </div>
                 </div>
               </section>
             </section>

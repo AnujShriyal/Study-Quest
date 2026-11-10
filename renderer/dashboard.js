@@ -5,7 +5,18 @@ const state = {
   completedOpen: true,
   pendingGoal: null,
   tab: 'overview',
-  activity: { baseTotal: 0, baseActive: 0, todayBase: 0, todayCell: null }
+  activity: { baseTotal: 0, baseActive: 0, todayBase: 0, todayCell: null },
+  friends: {
+    enabled: false,
+    roomCode: null,
+    members: [],
+    syncedAt: 0,
+    error: null,
+    myUserId: null,
+    displayName: '',
+    sort: 'today',
+    defaultSyncUrlSet: false
+  }
 };
 
 /* Dark is the default theme — apply it before first paint so the premium
@@ -367,6 +378,7 @@ function renderLive() {
   renderGreetingSub();
   renderGoal();
   updateActivityLive();
+  updateSyncedLabel();
 }
 
 function renderGoal() {
@@ -932,7 +944,7 @@ function initWindowControls() {
 }
 
 /* ---------- Workspace tabs ---------- */
-const WORKSPACE_TABS = ['overview', 'missions', 'history'];
+const WORKSPACE_TABS = ['overview', 'missions', 'history', 'friends'];
 
 function setTabBadge(id, count) {
   const badge = $(id);
@@ -1212,6 +1224,245 @@ $('themeMenu').addEventListener('keydown', (event) => {
 
 $('btnOverlay').addEventListener('click', () => window.api.toggleOverlay());
 
+/* ---------- Friends leaderboard ---------- */
+const FRIEND_AWAY_MS = 2 * 60 * 60 * 1000;
+
+function relTime(ts) {
+  if (!ts) return 'never';
+  const s = Math.max(0, Math.floor((Date.now() - ts) / 1000));
+  if (s < 45) return 'just now';
+  if (s < 3600) return `${Math.max(1, Math.round(s / 60))}m ago`;
+  if (s < 86400) return `${Math.round(s / 3600)}h ago`;
+  return `${Math.round(s / 86400)}d ago`;
+}
+
+function applyFriendsState(f) {
+  if (!f) return;
+  state.friends.enabled = !!f.enabled;
+  state.friends.roomCode = f.roomCode || null;
+  state.friends.members = Array.isArray(f.snapshot) ? f.snapshot : state.friends.members;
+  state.friends.syncedAt = f.lastSyncAt || 0;
+  state.friends.error = f.lastError || null;
+  state.friends.displayName = f.displayName || '';
+  state.friends.baseUrl = f.baseUrl || '';
+}
+
+function showFriendsError(msg) {
+  const el = $('friendsError');
+  if (!el) return;
+  el.textContent = msg;
+  el.hidden = false;
+}
+
+function hideFriendsError() {
+  const el = $('friendsError');
+  if (el) el.hidden = true;
+}
+
+function updateSyncedLabel() {
+  const el = $('friendsSynced');
+  if (!el) return;
+  el.textContent = state.friends.error
+    ? `offline · last synced ${relTime(state.friends.syncedAt)}`
+    : `synced ${relTime(state.friends.syncedAt)}`;
+  el.classList.toggle('stale', !!state.friends.error);
+}
+
+function friendSortKey(m) {
+  return state.friends.sort === 'week' ? m.weekSeconds : m.todaySeconds;
+}
+
+function renderFriends() {
+  const joined = state.friends.enabled && !!state.friends.roomCode;
+  $('friendsSetup').hidden = joined;
+  $('friendsBoard').hidden = !joined;
+  $('friendsRoom').hidden = !joined;
+  $('friendsServerRow').hidden = !!state.friends.defaultSyncUrlSet;
+
+  if (!joined) {
+    const nameInput = $('friendName');
+    if (nameInput && !nameInput.value && state.friends.displayName) {
+      nameInput.value = state.friends.displayName;
+    }
+    const serverInput = $('friendServer');
+    if (serverInput && !serverInput.value && state.friends.baseUrl) {
+      serverInput.value = state.friends.baseUrl;
+    }
+    return;
+  }
+  $('roomCodePill').textContent = state.friends.roomCode;
+  renderFriendsList();
+  updateSyncedLabel();
+}
+
+function renderFriendsList() {
+  const list = $('friendsList');
+  list.innerHTML = '';
+  const members = [...(state.friends.members || [])]
+    .filter((m) => m && m.userId)
+    .sort((a, b) => friendSortKey(b) - friendSortKey(a));
+
+  if (!members.length) {
+    const li = document.createElement('li');
+    li.className = 'friends-empty';
+    li.appendChild(emptyState('i-users', 'Nobody here yet — share the room code with friends.'));
+    list.appendChild(li);
+    return;
+  }
+
+  const now = Date.now();
+  members.forEach((m, idx) => {
+    const isMe = m.userId === state.friends.myUserId;
+    const away = now - (m.lastSeen || 0) > FRIEND_AWAY_MS;
+    const li = document.createElement('li');
+    li.className = `friend-row${idx === 0 ? ' top-1' : ''}${idx === 1 ? ' top-2' : ''}` +
+      `${idx === 2 ? ' top-3' : ''}${isMe ? ' me' : ''}${away ? ' away' : ''}`;
+
+    const rank = document.createElement('span');
+    rank.className = 'friend-rank mono';
+    rank.textContent = String(idx + 1);
+
+    const id = document.createElement('span');
+    id.className = 'friend-id';
+    const ava = document.createElement('i');
+    ava.className = 'mix-dot';
+    const color = subjectColor(m.userId || m.name);
+    ava.style.background = color;
+    ava.style.color = color;
+    const name = document.createElement('span');
+    name.className = 'friend-name';
+    name.textContent = m.name;
+    name.title = m.name;
+    id.append(ava, name);
+    if (isMe) {
+      const you = document.createElement('span');
+      you.className = 'you';
+      you.textContent = 'you';
+      id.appendChild(you);
+    }
+
+    const today = document.createElement('span');
+    today.className = 'friend-stat mono';
+    today.textContent = fmtMinutesShort(m.todaySeconds);
+    const week = document.createElement('span');
+    week.className = 'friend-stat mono';
+    week.textContent = fmtMinutesShort(m.weekSeconds);
+
+    const streak = document.createElement('span');
+    streak.className = 'friend-streak mono';
+    streak.innerHTML = '<svg class="icon icon-sm" aria-hidden="true"><use href="#i-flame"></use></svg>';
+    const streakVal = document.createElement('span');
+    streakVal.textContent = `${m.streak}d`;
+    streak.appendChild(streakVal);
+
+    const lvl = document.createElement('span');
+    lvl.className = 'friend-lvl mono';
+    lvl.textContent = `L${m.level}`;
+
+    li.append(rank, id, today, week, streak, lvl);
+    list.appendChild(li);
+  });
+}
+
+function setFriendsSort(sort) {
+  state.friends.sort = sort === 'week' ? 'week' : 'today';
+  $('sortToday').classList.toggle('is-active', state.friends.sort === 'today');
+  $('sortWeek').classList.toggle('is-active', state.friends.sort === 'week');
+  renderFriendsList();
+}
+
+async function friendsJoin(mode) {
+  const name = $('friendName').value.trim();
+  if (!name) {
+    showFriendsError('Pick a display name first');
+    $('friendName').focus();
+    return;
+  }
+  const baseUrl = state.friends.defaultSyncUrlSet ? undefined : $('friendServer').value.trim();
+  const btn = mode === 'create' ? $('btnCreateRoom') : $('btnJoinRoom');
+  hideFriendsError();
+  btn.disabled = true;
+
+  const res = await window.api.joinRoom({
+    mode,
+    code: $('friendCode').value,
+    displayName: name,
+    baseUrl
+  }).catch((e) => ({ ok: false, error: String(e) }));
+  btn.disabled = false;
+
+  if (!res || !res.ok) {
+    showFriendsError(res?.error || 'Could not reach the sync server');
+    return;
+  }
+  state.friends.roomCode = res.roomCode;
+  state.friends.enabled = true;
+  toast(mode === 'create' ? `Room created — code ${res.roomCode}` : `Joined room ${res.roomCode}`, {
+    icon: 'i-users'
+  });
+  renderFriends();
+}
+
+$('btnCreateRoom').addEventListener('click', () => friendsJoin('create'));
+$('btnJoinRoom').addEventListener('click', () => friendsJoin('join'));
+$('friendCode').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    friendsJoin('join');
+  }
+});
+$('friendName').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    friendsJoin('create');
+  }
+});
+$('friendCode').addEventListener('input', (e) => {
+  e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+});
+
+$('btnCopyRoom').addEventListener('click', async () => {
+  const code = state.friends.roomCode || $('roomCodePill').textContent;
+  try {
+    await navigator.clipboard.writeText(code);
+    toast(`Room code ${code} copied`, { icon: 'i-copy' });
+  } catch {
+    toast(`Room code: ${code}`);
+  }
+});
+
+$('btnRefreshFriends').addEventListener('click', async (e) => {
+  const btn = e.currentTarget;
+  btn.disabled = true;
+  const res = await window.api.refreshFriends().catch(() => ({ ok: false, error: 'Not connected' }));
+  btn.disabled = false;
+  if (res && res.ok) toast('Leaderboard updated', { icon: 'i-check' });
+  else if (res && res.error) toast(res.error, { tone: 'danger' });
+});
+
+$('btnLeaveRoom').addEventListener('click', async () => {
+  const res = await window.api.leaveRoom().catch(() => ({ ok: false }));
+  if (res && res.ok) {
+    state.friends.enabled = false;
+    state.friends.roomCode = null;
+    state.friends.members = [];
+    state.friends.syncedAt = 0;
+    state.friends.error = null;
+    toast('Left the room', { tone: 'danger' });
+    renderFriends();
+  }
+});
+
+$('sortToday').addEventListener('click', () => setFriendsSort('today'));
+$('sortWeek').addEventListener('click', () => setFriendsSort('week'));
+
+window.api.onFriendsUpdated((payload) => {
+  state.friends.members = Array.isArray(payload.members) ? payload.members : [];
+  state.friends.syncedAt = payload.syncedAt || 0;
+  state.friends.error = payload.error || null;
+  renderFriends();
+});
+
 /* ---------- Live updates ---------- */
 window.api.onTimerTick((payload) => {
   state.timer = payload;
@@ -1261,5 +1512,13 @@ window.api.onGoalReached(({ goalMinutes }) => {
   state.stats = res.stats;
   state.timer = res.timer;
   applyTheme(res.data?.settings?.theme || 'dark');
+
+  const friends = await window.api.getFriends().catch(() => null);
+  if (friends) {
+    applyFriendsState(friends.friends);
+    state.friends.myUserId = friends.myUserId || null;
+    state.friends.defaultSyncUrlSet = !!friends.defaultSyncUrlSet;
+  }
   renderAll();
+  renderFriends();
 })();

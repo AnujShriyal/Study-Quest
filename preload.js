@@ -21,6 +21,12 @@ contextBridge.exposeInMainWorld('api', {
   setGoal: (minutes) => ipcRenderer.invoke('goal:set', minutes),
   setTheme: (theme) => ipcRenderer.invoke('theme:set', theme),
 
+  getFriends: () => ipcRenderer.invoke('friends:get'),
+  joinRoom: (opts) => ipcRenderer.invoke('friends:join', opts),
+  leaveRoom: () => ipcRenderer.invoke('friends:leave'),
+  refreshFriends: () => ipcRenderer.invoke('friends:refresh'),
+  setDisplayName: (name) => ipcRenderer.invoke('friends:setName', name),
+
   toggleOverlay: () => ipcRenderer.invoke('overlay:toggle'),
   hideOverlay: () => ipcRenderer.invoke('overlay:hide'),
   showDashboard: () => ipcRenderer.invoke('window:showDashboard'),
@@ -34,5 +40,6 @@ contextBridge.exposeInMainWorld('api', {
   onDataUpdated: (cb) => ipcRenderer.on('data:updated', (_e, payload) => cb(payload)),
   onLevelUp: (cb) => ipcRenderer.on('level:up', (_e, payload) => cb(payload)),
   onGoalReached: (cb) => ipcRenderer.on('goal:reached', (_e, payload) => cb(payload)),
-  onMaximizedChange: (cb) => ipcRenderer.on('window:maximized', (_e, value) => cb(value))
+  onMaximizedChange: (cb) => ipcRenderer.on('window:maximized', (_e, value) => cb(value)),
+  onFriendsUpdated: (cb) => ipcRenderer.on('friends:updated', (_e, payload) => cb(payload))
 });

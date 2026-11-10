@@ -696,6 +696,9 @@
 
 * { box-sizing: border-box; }
 
+/* Author display values (flex/grid) must never defeat the hidden attribute. */
+[hidden] { display: none !important; }
+
 html, body { height: 100%; }
 
 body {
