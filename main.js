@@ -3,12 +3,15 @@ const {
 } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const sync = require('./sync');
 
 const DATA_PATH = path.join(app.getPath('userData'), 'study-quest-data.json');
 const MIN_SESSION_SECONDS = 5;              // ignore accidental sub-5-second sessions
 const MAX_RESTORE_MS = 12 * 60 * 60 * 1000; // never restore more than 12h of timer state
 const MAX_SUBJECT_LEN = 60;
 const MAX_TODO_LEN = 200;
+const MAX_FRIEND_NAME_LEN = 24;
+const THEMES = ['dark', 'light', 'legacy'];
 
 // ---------- Small helpers ----------
 function isObj(v) {
@@ -62,7 +65,19 @@ function defaultData() {
       overlayBounds: null,
       overlayVisible: true,
       dailyGoalMinutes: 120,
-      trayHintShown: false
+      trayHintShown: false,
+      theme: 'dark',
+      friends: {
+        enabled: false,
+        baseUrl: '',
+        roomCode: null,
+        userId: null,
+        memberSecret: null,
+        displayName: '',
+        lastSyncAt: 0,
+        lastError: null,
+        snapshot: []
+      }
     },
     activeTimer: null // survives restarts/crashes (restored paused)
   };
@@ -123,6 +138,23 @@ function sanitizeActiveTimer(t) {
   };
 }
 
+function sanitizeFriends(raw) {
+  const f = isObj(raw) ? raw : {};
+  return {
+    enabled: !!f.enabled,
+    baseUrl: typeof f.baseUrl === 'string' ? f.baseUrl.trim().slice(0, 200) : '',
+    roomCode: typeof f.roomCode === 'string'
+      ? f.roomCode.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6) || null
+      : null,
+    userId: typeof f.userId === 'string' ? f.userId.slice(0, 64) : null,
+    memberSecret: typeof f.memberSecret === 'string' ? f.memberSecret.slice(0, 128) : null,
+    displayName: typeof f.displayName === 'string' ? f.displayName.slice(0, MAX_FRIEND_NAME_LEN) : '',
+    lastSyncAt: num(f.lastSyncAt, 0, Number.MAX_SAFE_INTEGER, 0),
+    lastError: typeof f.lastError === 'string' ? f.lastError.slice(0, 120) : null,
+    snapshot: Array.isArray(f.snapshot) ? f.snapshot.map(sync.sanitizeMember).filter(Boolean) : []
+  };
+}
+
 function sanitizeData(raw) {
   const base = defaultData();
   if (!isObj(raw)) return base;
@@ -142,7 +174,9 @@ function sanitizeData(raw) {
       overlayBounds: sanitizeBounds(settings.overlayBounds),
       overlayVisible: settings.overlayVisible !== false,
       dailyGoalMinutes: Math.round(num(settings.dailyGoalMinutes, 0, 720, base.settings.dailyGoalMinutes)),
-      trayHintShown: !!settings.trayHintShown
+      trayHintShown: !!settings.trayHintShown,
+      theme: THEMES.includes(settings.theme) ? settings.theme : 'dark',
+      friends: sanitizeFriends(settings.friends)
     },
     activeTimer: sanitizeActiveTimer(raw.activeTimer)
   };
@@ -419,8 +453,29 @@ function stopTickLoop() {
   }
 }
 
+// The renderer never needs the member secret — strip it from anything
+// broadcast or returned over IPC.
+function publicData() {
+  const f = data.settings.friends;
+  return {
+    ...data,
+    settings: {
+      ...data.settings,
+      friends: f ? { ...f, memberSecret: undefined } : f
+    }
+  };
+}
+
+function friendsPublicState() {
+  const f = data.settings.friends;
+  return {
+    friends: f ? { ...f, memberSecret: undefined } : f,
+    defaultSyncUrlSet: !!sync.getDefaultSyncUrl()
+  };
+}
+
 function broadcastData() {
-  sendToAll('data:updated', { data, stats: computeStats() });
+  sendToAll('data:updated', { data: publicData(), stats: computeStats() });
 }
 
 // ---------- Windows ----------
@@ -689,6 +744,7 @@ function stopCurrentSession() {
   persistTimer();
   broadcastTimer();
   broadcastData();
+  sync.syncNow('session-stop'); // fire-and-forget; never blocks the session flow
   if (levelUp) sendToAll('level:up', { level: levelUp });
   if (goalReached) sendToAll('goal:reached', { goalMinutes: data.settings.dailyGoalMinutes });
 
@@ -697,9 +753,10 @@ function stopCurrentSession() {
 
 // ---------- IPC ----------
 ipcMain.handle('data:get', () => ({
-  data,
+  data: publicData(),
   stats: computeStats(),
-  timer: timerSnapshot()
+  timer: timerSnapshot(),
+  friends: friendsPublicState()
 }));
 
 ipcMain.handle('todo:add', (_e, textRaw) => {
@@ -778,6 +835,26 @@ ipcMain.handle('goal:set', (_e, minutes) => {
   return { goalMinutes: data.settings.dailyGoalMinutes };
 });
 
+ipcMain.handle('theme:set', (_e, theme) => {
+  if (THEMES.includes(theme) && theme !== data.settings.theme) {
+    data.settings.theme = theme;
+    saveData();
+    syncNativeTheme();
+    broadcastData();
+  }
+  return { theme: data.settings.theme };
+});
+
+ipcMain.handle('friends:get', () => ({ ...friendsPublicState(), myUserId: data.settings.friends.userId }));
+ipcMain.handle('friends:join', (_e, opts) => {
+  const o = isObj(opts) ? opts : {};
+  if (o.mode === 'create') return sync.createRoom({ displayName: o.displayName, baseUrl: o.baseUrl });
+  return sync.joinRoom({ code: o.code, displayName: o.displayName, baseUrl: o.baseUrl });
+});
+ipcMain.handle('friends:leave', () => sync.leaveRoom());
+ipcMain.handle('friends:refresh', () => sync.syncNow('manual'));
+ipcMain.handle('friends:setName', (_e, name) => sync.setName(name));
+
 ipcMain.handle('overlay:toggle', () => toggleOverlay());
 ipcMain.handle('overlay:hide', () => { if (overlayWindow) overlayWindow.hide(); });
 ipcMain.handle('window:showDashboard', () => showDashboard());
@@ -799,6 +876,11 @@ ipcMain.handle('window:isMaximized', () =>
 ipcMain.handle('app:quit', () => { app.isQuiting = true; app.quit(); });
 
 // ---------- Lifecycle ----------
+function syncNativeTheme() {
+  // Native chrome (context menus, tooltips) follows the chosen theme.
+  nativeTheme.themeSource = data.settings.theme === 'light' ? 'light' : 'dark';
+}
+
 const gotSingleInstanceLock = app.requestSingleInstanceLock();
 
 if (!gotSingleInstanceLock) {
@@ -807,8 +889,17 @@ if (!gotSingleInstanceLock) {
   app.on('second-instance', () => showDashboard());
 
   app.whenReady().then(() => {
-    nativeTheme.themeSource = 'dark';
+    syncNativeTheme();
     restoreTimer();
+
+    sync.initSync({
+      getData: () => data,
+      saveData,
+      computeStats,
+      sendToAll,
+      uid
+    });
+    sync.scheduleSync();
 
     createMainWindow();
     createOverlayWindow();

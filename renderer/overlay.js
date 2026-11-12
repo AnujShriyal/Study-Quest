@@ -6,7 +6,18 @@ const state = {
   tooShortText: ''
 };
 
+/* Dark is the default theme — apply before first paint; settings correct it. */
+document.documentElement.dataset.theme ||= 'dark';
+
 const $ = (id) => document.getElementById(id);
+
+/* The overlay follows the theme chosen in the dashboard (settings.theme). */
+const THEMES = ['dark', 'light', 'legacy'];
+
+function applyTheme(theme) {
+  if (!THEMES.includes(theme)) theme = 'dark';
+  document.documentElement.dataset.theme = theme;
+}
 
 function fmtHMS(totalSeconds) {
   const s = Math.max(0, Math.floor(totalSeconds || 0));
@@ -199,6 +210,7 @@ window.api.onTimerTick((payload) => {
 window.api.onDataUpdated((payload) => {
   state.data = payload.data;
   state.stats = payload.stats;
+  applyTheme(payload.data?.settings?.theme || 'dark');
   renderGoal();
   renderTodos();
 });
@@ -209,6 +221,7 @@ window.api.onDataUpdated((payload) => {
   state.data = res.data;
   state.stats = res.stats;
   state.timer = res.timer;
+  applyTheme(res.data?.settings?.theme || 'dark');
   renderTimer();
   renderGoal();
   renderTodos();

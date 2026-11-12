@@ -4,9 +4,10 @@ A local-first Windows desktop study tracker with a game-like dashboard. Study
 sessions earn XP, build streaks, and fill a GitHub-style activity calendar, while
 a compact always-on-top overlay keeps the timer within reach.
 
-**Version:** 1.3.1  
+**Version:** 1.4.0  
 **Platform:** Windows 10/11  
-**Storage:** Local JSON file — no account, cloud database, or internet required.
+**Storage:** Local JSON file. The app runs fully offline; the optional Friends
+leaderboard syncs aggregate stats through a tiny server you deploy once.
 
 ![Study Quest dashboard](docs/screenshots/dashboard-overview.png)
 
@@ -46,6 +47,39 @@ a compact always-on-top overlay keeps the timer within reach.
 - Level up with a toast and confetti effect.
 - Streaks are calculated from saved sessions, so the current streak, longest
   streak, and "studied today" state are always accurate.
+
+### Themes
+
+- Three built-in themes, switchable from the half-circle button in the title bar
+  (keyboard navigable, Esc closes):
+  - **Dark** (default) — warm graphite surfaces with a single amber accent,
+    solid cards, hairline borders, and no glow or glass effects.
+  - **Light** — warm paper white with the same amber accent, darkened for
+    contrast.
+  - **Legacy** — the original neon teal/violet look, preserved exactly.
+- The choice is saved in the data file (`settings.theme`) and applied to both
+  the dashboard and the floating overlay instantly; charts, the heatmap, and
+  subject colors all re-tint to match the active theme.
+- UI text uses the bundled Inter variable font (`assets/fonts/`, SIL Open Font
+  License); the timer keeps the monospaced Cascadia font so digits never jitter.
+
+### Friends leaderboard
+
+- A fourth **Friends** tab: create a room and share its 6-character code, or
+  join a friend's room. No accounts, no signup — the room code is the group.
+- Everyone in the room sees each other's display name, today's study time,
+  this week's time, streak, level, and total time, with Today/This week
+  sorting and top-3 highlighting.
+- Identity is a random ID generated locally plus a per-member secret issued
+  once by the server (stored only as a hash) so nobody can post as someone
+  else. "Leave room" deletes your row; rooms idle for 30 days are cleaned up.
+- Aggregates sync when the app starts, every 10 minutes, after each saved
+  session, and on manual refresh. Offline, the last snapshot stays visible
+  with its age.
+- The server is a tiny Cloudflare Worker + D1 database you deploy once from
+  the `worker/` folder (free tier — see `worker/README.md`), or a
+  zero-dependency local mock (`node worker/mock-server.js`) for testing.
+  Sessions, subjects, missions, and goals never leave your machine.
 
 ### Dashboard
 
@@ -102,6 +136,11 @@ a compact always-on-top overlay keeps the timer within reach.
 
 - **Electron 31** — desktop shell and windows.
 - **Vanilla HTML, CSS, and JavaScript** — no frontend framework or bundler.
+- **CSS custom properties** — the whole visual system is token-based, with three
+  full themes (`:root` dark default, `[data-theme="light"]`,
+  `[data-theme="legacy"]`) in `renderer/theme.css`.
+- **Inter variable font** — bundled locally (`assets/fonts/InterVariable.woff2`,
+  SIL OFL 1.1); no font CDN is contacted.
 - **Node.js main process** — timer engine, IPC, tray, persistence, and stats.
 - **electron-builder + NSIS** — Windows installer generation.
 - **Local JSON storage** — no Firebase, Firestore, SQL, or remote API.
@@ -236,6 +275,7 @@ The data file contains:
 - Quest log items
 - Recent subjects
 - Daily goal and overlay settings
+- Chosen theme (`dark`, `light`, or `legacy`)
 - Overlay position and visibility
 - Active timer state used for crash/restart recovery
 - Streak metadata
@@ -291,11 +331,13 @@ created the next time the app starts.
 
 ### Privacy
 
-- No cloud sync.
 - No Firebase or third-party database.
 - No analytics or telemetry code is included.
 - Study data stays in the local application-data folder.
 - The packaged app does not require an internet connection for normal use.
+- The optional Friends leaderboard sends only aggregates (display name, today's
+  time, weekly time, streak, level, total time) to the sync server you deploy.
+  Session history, subjects, missions, and goals never leave your machine.
 
 ## Project structure
 
@@ -303,13 +345,15 @@ created the next time the app starts.
 study-tracker/
 ├─ main.js                       Electron main process, timer engine, tray, IPC, persistence
 ├─ preload.js                    Secure window.api bridge exposed to renderer pages
+├─ sync.js                       Friends leaderboard sync client (main process)
 ├─ package.json                  Scripts, dependencies, electron-builder config
 ├─ package-lock.json             Locked dependency versions
 ├─ README.md                     Project documentation
 ├─ .gitignore                    Excludes dependencies, builds, and logs
 ├─ assets/
 │  ├─ icon.ico                   App/installer icon
-│  └─ tray.png                   System tray icon
+│  ├─ tray.png                   System tray icon
+│  └─ fonts/                     Bundled Inter variable font (OFL)
 ├─ renderer/
 │  ├─ dashboard.html             Main window structure
 │  ├─ dashboard.css              Dashboard, tabs, calendar, and focus panel styles
@@ -317,7 +361,8 @@ study-tracker/
 │  ├─ overlay.html               Floating overlay structure
 │  ├─ overlay.css                Overlay styles
 │  ├─ overlay.js                 Overlay timer and mini quest UI
-│  └─ theme.css                  Shared colors, typography, buttons, toasts, animations
+│  └─ theme.css                  Shared themes, colors, typography, buttons, toasts
+├─ worker/                       Friends sync server (Cloudflare Worker + D1, mock server)
 ├─ docs/
 │  └─ screenshots/               README screenshots (not part of the packaged app)
 ├─ dist/                         Generated installer output (ignored by Git)
@@ -344,6 +389,15 @@ Edit `levelFromXp()` in `main.js` to change how much XP each level requires.
 
 The default goal is 2 hours (`dailyGoalMinutes: 120`) in `defaultData()` in
 `main.js`. Preset targets are in `renderer/dashboard.html` inside `#goalSelect`.
+
+### Themes and colors
+
+All theme colors live as CSS custom properties in `renderer/theme.css`:
+dark is the `:root` default, light and legacy override it under
+`[data-theme="light"]` and `[data-theme="legacy"]`. Chart and subject colors are
+exposed as `--subject-1` … `--subject-7` and read by `renderer/dashboard.js`,
+so recoloring a theme automatically recolors the charts. Valid values for
+`settings.theme` are listed in `THEMES` in `main.js`.
 
 ### Overlay size
 

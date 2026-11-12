@@ -5,13 +5,57 @@ const state = {
   completedOpen: true,
   pendingGoal: null,
   tab: 'overview',
-  activity: { baseTotal: 0, baseActive: 0, todayBase: 0, todayCell: null }
+  activity: { baseTotal: 0, baseActive: 0, todayBase: 0, todayCell: null },
+  friends: {
+    enabled: false,
+    roomCode: null,
+    members: [],
+    syncedAt: 0,
+    error: null,
+    myUserId: null,
+    displayName: '',
+    sort: 'today',
+    defaultSyncUrlSet: false
+  }
 };
+
+/* Dark is the default theme — apply it before first paint so the premium
+   layout (not legacy's) is what renders while settings load. */
+document.documentElement.dataset.theme ||= 'dark';
 
 const $ = (id) => document.getElementById(id);
 
-const SUBJECT_PALETTE = ['#37ead0', '#8e74ff', '#ffc857', '#5cd9ff', '#ff6b8a', '#a8e86a', '#ff9f6b'];
-const CONFETTI_COLORS = ['#37ead0', '#5cd9ff', '#8e74ff', '#ffc857', '#ff6b8a', '#a8e86a'];
+/* Subject + confetti colors come from the active theme's CSS variables so
+   charts always match the current theme. Re-read after every theme change. */
+let subjectPalette = [];
+let confettiColors = [];
+
+function refreshThemePalettes() {
+  const styles = getComputedStyle(document.documentElement);
+  const read = (name) => (styles.getPropertyValue(name) || '').trim();
+  subjectPalette = [1, 2, 3, 4, 5, 6, 7].map((i) => read(`--subject-${i}`)).filter(Boolean);
+  confettiColors = [1, 2, 3, 4, 5, 6].map((i) => read(`--confetti-${i}`)).filter(Boolean);
+  if (!confettiColors.length) confettiColors = subjectPalette.slice(0, 6);
+}
+
+const THEME_OPTIONS = [
+  { value: 'dark', label: 'Dark', swatches: ['#1c1c21', '#e2a44b'] },
+  { value: 'light', label: 'Light', swatches: ['#ffffff', '#c98a2e'] },
+  { value: 'legacy', label: 'Legacy', swatches: ['#060811', '#37ead0'] }
+];
+
+function applyTheme(theme) {
+  if (!THEME_OPTIONS.some((t) => t.value === theme)) theme = 'dark';
+  document.documentElement.dataset.theme = theme;
+  refreshThemePalettes();
+}
+
+function syncThemeFromData(d) {
+  const theme = d?.settings?.theme || 'dark';
+  if ((document.documentElement.dataset.theme || 'dark') !== theme) {
+    applyTheme(theme);
+  }
+}
 
 /* ---------- Formatting ---------- */
 function fmtHMS(totalSeconds) {
@@ -88,12 +132,14 @@ function liveTodaySeconds() {
 }
 
 function subjectColor(subject) {
+  if (!subjectPalette.length) refreshThemePalettes();
+  const palette = subjectPalette;
   const subjects = state.data?.subjects || [];
   const idx = subjects.indexOf(subject);
-  if (idx >= 0) return SUBJECT_PALETTE[idx % SUBJECT_PALETTE.length];
+  if (idx >= 0) return palette[idx % palette.length];
   let hash = 0;
   for (let i = 0; i < subject.length; i += 1) hash = (hash * 31 + subject.charCodeAt(i)) | 0;
-  return SUBJECT_PALETTE[Math.abs(hash) % SUBJECT_PALETTE.length];
+  return palette[Math.abs(hash) % palette.length];
 }
 
 /* ---------- Little flourishes ---------- */
@@ -108,7 +154,7 @@ function celebrate() {
     piece.style.setProperty('--r1', `${Math.round(Math.random() * 900 - 450)}deg`);
     piece.style.setProperty('--dur', `${(1.8 + Math.random() * 1.1).toFixed(2)}s`);
     piece.style.setProperty('--delay', `${(Math.random() * 0.25).toFixed(2)}s`);
-    piece.style.setProperty('--c', CONFETTI_COLORS[i % CONFETTI_COLORS.length]);
+    piece.style.setProperty('--c', confettiColors[i % confettiColors.length]);
     host.appendChild(piece);
   }
   setTimeout(() => { host.innerHTML = ''; }, 3200);
@@ -119,6 +165,13 @@ function toast(message, opts = {}) {
   const host = $('toastHost');
   const node = document.createElement('div');
   node.className = `toast${opts.tone ? ` ${opts.tone}` : ''}`;
+
+  if (opts.icon) {
+    const icon = document.createElement('span');
+    icon.className = 'toast-icon';
+    icon.innerHTML = `<svg class="icon" aria-hidden="true"><use href="#${opts.icon}"></use></svg>`;
+    node.appendChild(icon);
+  }
 
   const msg = document.createElement('div');
   msg.className = 'toast-msg';
@@ -325,6 +378,7 @@ function renderLive() {
   renderGreetingSub();
   renderGoal();
   updateActivityLive();
+  updateSyncedLabel();
 }
 
 function renderGoal() {
@@ -366,7 +420,7 @@ function renderGoal() {
   if (goal <= 0) {
     text.textContent = `${fmtMinutesShort(today)} today · no goal`;
   } else if (reached) {
-    text.textContent = `${fmtMinutesShort(today)} / ${fmtMinutesShort(goal)} ✓`;
+    text.textContent = `${fmtMinutesShort(today)} / ${fmtMinutesShort(goal)} — done`;
   } else {
     text.textContent = `${fmtMinutesShort(today)} / ${fmtMinutesShort(goal)}`;
   }
@@ -490,6 +544,8 @@ function renderFocusMix() {
     const color = subjectColor(item.subject);
     const row = document.createElement('div');
     row.className = 'mix-item';
+    row.style.setProperty('--row-c', color);
+    row.style.setProperty('--pct', `${total > 0 ? ((item.seconds / total) * 100).toFixed(1) : 0}%`);
     const dot = document.createElement('span');
     dot.className = 'mix-dot';
     dot.style.background = color;
@@ -888,7 +944,7 @@ function initWindowControls() {
 }
 
 /* ---------- Workspace tabs ---------- */
-const WORKSPACE_TABS = ['overview', 'missions', 'history'];
+const WORKSPACE_TABS = ['overview', 'missions', 'history', 'friends'];
 
 function setTabBadge(id, count) {
   const badge = $(id);
@@ -1048,13 +1104,364 @@ $('goalMenu').addEventListener('keydown', (event) => {
 
 document.addEventListener('click', (event) => {
   if (!event.target.closest('#goalPicker')) closeGoalMenu();
+  if (!event.target.closest('#themePicker')) closeThemeMenu();
 });
 
 document.addEventListener('keydown', (event) => {
-  if (event.key === 'Escape') closeGoalMenu(true);
+  if (event.key === 'Escape') {
+    closeGoalMenu(true);
+    closeThemeMenu(true);
+  }
+});
+
+/* ---------- Theme picker ---------- */
+function renderThemeOptions() {
+  const host = $('themeOptions');
+  if (!host) return;
+  const current = document.documentElement.dataset.theme || 'dark';
+
+  host.innerHTML = '';
+  for (const option of THEME_OPTIONS) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'theme-option';
+    btn.dataset.themeValue = option.value;
+    btn.setAttribute('role', 'option');
+    btn.setAttribute('aria-selected', String(option.value === current));
+
+    const swatches = document.createElement('span');
+    swatches.className = 'theme-swatch';
+    swatches.setAttribute('aria-hidden', 'true');
+    for (const color of option.swatches) {
+      const dot = document.createElement('i');
+      dot.style.background = color;
+      swatches.appendChild(dot);
+    }
+
+    const name = document.createElement('span');
+    name.className = 'theme-name';
+    name.textContent = option.label;
+
+    const check = document.createElement('span');
+    check.className = 'theme-option-check';
+    check.setAttribute('aria-hidden', 'true');
+
+    btn.append(swatches, name, check);
+    btn.addEventListener('click', () => chooseTheme(option.value));
+    host.appendChild(btn);
+  }
+}
+
+function openThemeMenu() {
+  const menu = $('themeMenu');
+  const picker = $('themePicker');
+  const trigger = $('themeTrigger');
+  if (!menu || !picker || !trigger) return;
+
+  renderThemeOptions();
+  menu.hidden = false;
+  picker.classList.add('is-open');
+  trigger.setAttribute('aria-expanded', 'true');
+
+  const selected = menu.querySelector('.theme-option.is-selected') || menu.querySelector('.theme-option');
+  if (selected) selected.focus({ preventScroll: true });
+}
+
+function closeThemeMenu(focusTrigger = false) {
+  const menu = $('themeMenu');
+  const picker = $('themePicker');
+  const trigger = $('themeTrigger');
+  if (!menu || menu.hidden) return;
+
+  menu.hidden = true;
+  picker?.classList.remove('is-open');
+  trigger?.setAttribute('aria-expanded', 'false');
+  if (focusTrigger) trigger?.focus({ preventScroll: true });
+}
+
+function chooseTheme(value) {
+  closeThemeMenu(true);
+  window.api.setTheme(value);
+}
+
+$('themeTrigger').addEventListener('click', () => {
+  if ($('themeMenu').hidden) openThemeMenu();
+  else closeThemeMenu(true);
+});
+
+$('themeTrigger').addEventListener('keydown', (event) => {
+  if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+    event.preventDefault();
+    openThemeMenu();
+  }
+});
+
+$('themePicker').addEventListener('focusout', (event) => {
+  if (event.relatedTarget && $('themePicker').contains(event.relatedTarget)) return;
+  closeThemeMenu();
+});
+
+$('themeMenu').addEventListener('keydown', (event) => {
+  const options = [...$('themeOptions').querySelectorAll('.theme-option')];
+  if (!options.length) return;
+  const index = options.indexOf(document.activeElement);
+
+  if (event.key === 'Escape') {
+    event.preventDefault();
+    closeThemeMenu(true);
+    return;
+  }
+  if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
+
+  event.preventDefault();
+  let next = index;
+  if (event.key === 'ArrowDown') next = (index + 1) % options.length;
+  if (event.key === 'ArrowUp') next = (index - 1 + options.length) % options.length;
+  if (event.key === 'Home') next = 0;
+  if (event.key === 'End') next = options.length - 1;
+  options[next].focus({ preventScroll: true });
 });
 
 $('btnOverlay').addEventListener('click', () => window.api.toggleOverlay());
+
+/* ---------- Friends leaderboard ---------- */
+const FRIEND_AWAY_MS = 2 * 60 * 60 * 1000;
+
+function relTime(ts) {
+  if (!ts) return 'never';
+  const s = Math.max(0, Math.floor((Date.now() - ts) / 1000));
+  if (s < 45) return 'just now';
+  if (s < 3600) return `${Math.max(1, Math.round(s / 60))}m ago`;
+  if (s < 86400) return `${Math.round(s / 3600)}h ago`;
+  return `${Math.round(s / 86400)}d ago`;
+}
+
+function applyFriendsState(f) {
+  if (!f) return;
+  state.friends.enabled = !!f.enabled;
+  state.friends.roomCode = f.roomCode || null;
+  state.friends.members = Array.isArray(f.snapshot) ? f.snapshot : state.friends.members;
+  state.friends.syncedAt = f.lastSyncAt || 0;
+  state.friends.error = f.lastError || null;
+  state.friends.displayName = f.displayName || '';
+  state.friends.baseUrl = f.baseUrl || '';
+}
+
+function showFriendsError(msg) {
+  const el = $('friendsError');
+  if (!el) return;
+  el.textContent = msg;
+  el.hidden = false;
+}
+
+function hideFriendsError() {
+  const el = $('friendsError');
+  if (el) el.hidden = true;
+}
+
+function updateSyncedLabel() {
+  const el = $('friendsSynced');
+  if (!el) return;
+  el.textContent = state.friends.error
+    ? `offline · last synced ${relTime(state.friends.syncedAt)}`
+    : `synced ${relTime(state.friends.syncedAt)}`;
+  el.classList.toggle('stale', !!state.friends.error);
+}
+
+function friendSortKey(m) {
+  return state.friends.sort === 'week' ? m.weekSeconds : m.todaySeconds;
+}
+
+function renderFriends() {
+  const joined = state.friends.enabled && !!state.friends.roomCode;
+  $('friendsSetup').hidden = joined;
+  $('friendsBoard').hidden = !joined;
+  $('friendsRoom').hidden = !joined;
+  $('friendsServerRow').hidden = !!state.friends.defaultSyncUrlSet;
+
+  if (!joined) {
+    const nameInput = $('friendName');
+    if (nameInput && !nameInput.value && state.friends.displayName) {
+      nameInput.value = state.friends.displayName;
+    }
+    const serverInput = $('friendServer');
+    if (serverInput && !serverInput.value && state.friends.baseUrl) {
+      serverInput.value = state.friends.baseUrl;
+    }
+    return;
+  }
+  $('roomCodePill').textContent = state.friends.roomCode;
+  renderFriendsList();
+  updateSyncedLabel();
+}
+
+function renderFriendsList() {
+  const list = $('friendsList');
+  list.innerHTML = '';
+  const members = [...(state.friends.members || [])]
+    .filter((m) => m && m.userId)
+    .sort((a, b) => friendSortKey(b) - friendSortKey(a));
+
+  if (!members.length) {
+    const li = document.createElement('li');
+    li.className = 'friends-empty';
+    li.appendChild(emptyState('i-users', 'Nobody here yet — share the room code with friends.'));
+    list.appendChild(li);
+    return;
+  }
+
+  const now = Date.now();
+  members.forEach((m, idx) => {
+    const isMe = m.userId === state.friends.myUserId;
+    const away = now - (m.lastSeen || 0) > FRIEND_AWAY_MS;
+    const li = document.createElement('li');
+    li.className = `friend-row${idx === 0 ? ' top-1' : ''}${idx === 1 ? ' top-2' : ''}` +
+      `${idx === 2 ? ' top-3' : ''}${isMe ? ' me' : ''}${away ? ' away' : ''}`;
+
+    const rank = document.createElement('span');
+    rank.className = 'friend-rank mono';
+    rank.textContent = String(idx + 1);
+
+    const id = document.createElement('span');
+    id.className = 'friend-id';
+    const ava = document.createElement('i');
+    ava.className = 'mix-dot';
+    const color = subjectColor(m.userId || m.name);
+    ava.style.background = color;
+    ava.style.color = color;
+    const name = document.createElement('span');
+    name.className = 'friend-name';
+    name.textContent = m.name;
+    name.title = m.name;
+    id.append(ava, name);
+    if (isMe) {
+      const you = document.createElement('span');
+      you.className = 'you';
+      you.textContent = 'you';
+      id.appendChild(you);
+    }
+
+    const today = document.createElement('span');
+    today.className = 'friend-stat mono';
+    today.textContent = fmtMinutesShort(m.todaySeconds);
+    const week = document.createElement('span');
+    week.className = 'friend-stat mono';
+    week.textContent = fmtMinutesShort(m.weekSeconds);
+
+    const streak = document.createElement('span');
+    streak.className = 'friend-streak mono';
+    streak.innerHTML = '<svg class="icon icon-sm" aria-hidden="true"><use href="#i-flame"></use></svg>';
+    const streakVal = document.createElement('span');
+    streakVal.textContent = `${m.streak}d`;
+    streak.appendChild(streakVal);
+
+    const lvl = document.createElement('span');
+    lvl.className = 'friend-lvl mono';
+    lvl.textContent = `L${m.level}`;
+
+    li.append(rank, id, today, week, streak, lvl);
+    list.appendChild(li);
+  });
+}
+
+function setFriendsSort(sort) {
+  state.friends.sort = sort === 'week' ? 'week' : 'today';
+  $('sortToday').classList.toggle('is-active', state.friends.sort === 'today');
+  $('sortWeek').classList.toggle('is-active', state.friends.sort === 'week');
+  renderFriendsList();
+}
+
+async function friendsJoin(mode) {
+  const name = $('friendName').value.trim();
+  if (!name) {
+    showFriendsError('Pick a display name first');
+    $('friendName').focus();
+    return;
+  }
+  const baseUrl = state.friends.defaultSyncUrlSet ? undefined : $('friendServer').value.trim();
+  const btn = mode === 'create' ? $('btnCreateRoom') : $('btnJoinRoom');
+  hideFriendsError();
+  btn.disabled = true;
+
+  const res = await window.api.joinRoom({
+    mode,
+    code: $('friendCode').value,
+    displayName: name,
+    baseUrl
+  }).catch((e) => ({ ok: false, error: String(e) }));
+  btn.disabled = false;
+
+  if (!res || !res.ok) {
+    showFriendsError(res?.error || 'Could not reach the sync server');
+    return;
+  }
+  state.friends.roomCode = res.roomCode;
+  state.friends.enabled = true;
+  toast(mode === 'create' ? `Room created — code ${res.roomCode}` : `Joined room ${res.roomCode}`, {
+    icon: 'i-users'
+  });
+  renderFriends();
+}
+
+$('btnCreateRoom').addEventListener('click', () => friendsJoin('create'));
+$('btnJoinRoom').addEventListener('click', () => friendsJoin('join'));
+$('friendCode').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    friendsJoin('join');
+  }
+});
+$('friendName').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    friendsJoin('create');
+  }
+});
+$('friendCode').addEventListener('input', (e) => {
+  e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+});
+
+$('btnCopyRoom').addEventListener('click', async () => {
+  const code = state.friends.roomCode || $('roomCodePill').textContent;
+  try {
+    await navigator.clipboard.writeText(code);
+    toast(`Room code ${code} copied`, { icon: 'i-copy' });
+  } catch {
+    toast(`Room code: ${code}`);
+  }
+});
+
+$('btnRefreshFriends').addEventListener('click', async (e) => {
+  const btn = e.currentTarget;
+  btn.disabled = true;
+  const res = await window.api.refreshFriends().catch(() => ({ ok: false, error: 'Not connected' }));
+  btn.disabled = false;
+  if (res && res.ok) toast('Leaderboard updated', { icon: 'i-check' });
+  else if (res && res.error) toast(res.error, { tone: 'danger' });
+});
+
+$('btnLeaveRoom').addEventListener('click', async () => {
+  const res = await window.api.leaveRoom().catch(() => ({ ok: false }));
+  if (res && res.ok) {
+    state.friends.enabled = false;
+    state.friends.roomCode = null;
+    state.friends.members = [];
+    state.friends.syncedAt = 0;
+    state.friends.error = null;
+    toast('Left the room', { tone: 'danger' });
+    renderFriends();
+  }
+});
+
+$('sortToday').addEventListener('click', () => setFriendsSort('today'));
+$('sortWeek').addEventListener('click', () => setFriendsSort('week'));
+
+window.api.onFriendsUpdated((payload) => {
+  state.friends.members = Array.isArray(payload.members) ? payload.members : [];
+  state.friends.syncedAt = payload.syncedAt || 0;
+  state.friends.error = payload.error || null;
+  renderFriends();
+});
 
 /* ---------- Live updates ---------- */
 window.api.onTimerTick((payload) => {
@@ -1066,6 +1473,7 @@ window.api.onTimerTick((payload) => {
 window.api.onDataUpdated((payload) => {
   state.data = payload.data;
   state.stats = payload.stats;
+  syncThemeFromData(payload.data);
   renderStats();
   renderTodos();
   renderHistory();
@@ -1080,14 +1488,15 @@ window.api.onLevelUp(({ level }) => {
   badge.classList.add('level-up');
   setTimeout(() => badge.classList.remove('level-up'), 800);
   celebrate();
-  toast(`Level ${level} reached! ⚡`, { tone: 'gold', timeout: 6000 });
+  toast(`Level ${level} reached`, { tone: 'gold', timeout: 6000, icon: 'i-zap' });
 });
 
 window.api.onGoalReached(({ goalMinutes }) => {
   celebrate();
-  toast(`Daily goal reached — ${fmtMinutesShort(goalMinutes * 60)} studied today. Nice 🎉`, {
+  toast(`Daily goal reached — ${fmtMinutesShort(goalMinutes * 60)} studied today. Nice`, {
     tone: 'gold',
-    timeout: 7000
+    timeout: 7000,
+    icon: 'i-target'
   });
 });
 
@@ -1102,5 +1511,14 @@ window.api.onGoalReached(({ goalMinutes }) => {
   state.data = res.data;
   state.stats = res.stats;
   state.timer = res.timer;
+  applyTheme(res.data?.settings?.theme || 'dark');
+
+  const friends = await window.api.getFriends().catch(() => null);
+  if (friends) {
+    applyFriendsState(friends.friends);
+    state.friends.myUserId = friends.myUserId || null;
+    state.friends.defaultSyncUrlSet = !!friends.defaultSyncUrlSet;
+  }
   renderAll();
+  renderFriends();
 })();
