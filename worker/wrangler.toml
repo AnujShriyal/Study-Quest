@@ -5,4 +5,4 @@ compatibility_date = "2024-09-01"
 [[d1_databases]]
 binding = "DB"
 database_name = "study-quest"
-database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+database_id = "11fc1ee2-1b8e-47eb-b726-8ef7e91d4e68"

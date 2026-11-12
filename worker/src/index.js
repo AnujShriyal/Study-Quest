@@ -90,6 +90,15 @@ async function upsertMember(env, request, code) {
     'SELECT secret_hash FROM members WHERE room = ? AND user_id = ?'
   ).bind(code, userId).first();
 
+  if (!existing) {
+    // Unknown member: only allow joining rooms that actually exist,
+    // otherwise a typo'd code would silently create a ghost room.
+    const roomExists = await env.DB.prepare(
+      'SELECT 1 FROM members WHERE room = ? AND last_seen > ? LIMIT 1'
+    ).bind(code, now - MEMBER_TTL_MS).first();
+    if (!roomExists) return json({ error: 'Room not found — check the code, or it expired' }, 404);
+  }
+
   if (existing) {
     if (!clampStr(body.secret, 128) || (await sha256(body.secret)) !== existing.secret_hash) {
       return json({ error: 'Unknown member for this room' }, 403);
@@ -121,7 +130,9 @@ async function upsertMember(env, request, code) {
 
 async function getRoom(env, code) {
   await gcRoom(env, code);
-  return json({ members: await liveMembers(env, code), serverTime: Date.now() });
+  const members = await liveMembers(env, code);
+  if (!members.length) return json({ error: 'Room not found — check the code, or it expired' }, 404);
+  return json({ members, serverTime: Date.now() });
 }
 
 async function leaveRoom(env, request, code) {
