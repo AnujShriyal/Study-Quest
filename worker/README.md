@@ -1,7 +1,11 @@
 # Study Quest sync server
 
-Two ways to run the friends leaderboard backend. Both speak the exact same
-tiny API — the app just needs the base URL.
+Two ways to run the guild leaderboard backend. Both speak the exact same
+tiny API — the app just needs the base URL. The canonical API paths are
+`/api/guilds/*`; the legacy `/api/rooms/*` paths are accepted as aliases.
+
+Every guild also gets a public, read-only leaderboard page at
+`/guild/<code>` — share it with anyone; joining still requires the app.
 
 ## Option A — Cloudflare Worker (recommended)
 
@@ -45,10 +49,17 @@ and LAN use; deploy the Worker for a real friend group.
 
 | Method | Path | Body | Returns |
 |---|---|---|---|
-| POST | `/api/rooms` | `{userId, name}` | `{code, secret, members[]}` |
-| POST | `/api/rooms/:code/members` | `{userId, secret?, name, stats}` | `{secret?, members[]}` — issues a secret on first join |
-| GET | `/api/rooms/:code` | — | `{members[], serverTime}` |
-| POST | `/api/rooms/:code/leave` | `{userId, secret}` | `{ok}` |
+| POST | `/api/guilds` | `{userId, name}` | `{code, secret, members[]}` |
+| POST | `/api/guilds/:code/members` | `{userId, secret?, name, stats}` | `{secret?, members[]}` — issues a secret on first join |
+| GET | `/api/guilds/:code` | — | `{members[], serverTime}` |
+| POST | `/api/guilds/:code/leave` | `{userId, secret}` | `{ok}` |
+| GET | `/guild/:code` | — | public HTML leaderboard page |
+
+(`stats = { todaySeconds, weekSeconds, streak, level, totalSeconds }`.
+The legacy `/api/rooms/*` aliases of the first four paths still work.
+Members not seen for 30 days are dropped. Max 50 members per guild.
+The secret is issued once at join and stored server-side only as a SHA-256
+hash; every sync must present it.)
 
 `stats = { todaySeconds, weekSeconds, streak, level, totalSeconds }`.
 Members not seen for 30 days are dropped. Max 50 members per room.

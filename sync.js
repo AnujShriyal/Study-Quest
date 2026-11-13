@@ -1,6 +1,6 @@
 'use strict';
 
-// Friends leaderboard sync — main process module.
+// Guild leaderboard sync — main process module.
 // Owns all network traffic. Aggregates only ever leave the machine:
 // name, today/week seconds, streak, level, total time. Never sessions,
 // subjects, missions, or the member secret (which stays in the data file
@@ -20,17 +20,23 @@ function initSync(d) {
   deps = d;
 }
 
-function friends() {
-  return deps.getData().settings.friends;
+function guild() {
+  return deps.getData().settings.guild;
 }
 
 function configuredBaseUrl() {
-  const base = (friends().baseUrl || DEFAULT_SYNC_URL).trim();
+  const base = (guild().baseUrl || DEFAULT_SYNC_URL).trim();
   return base ? base.replace(/\/+$/, '') : '';
 }
 
 function getDefaultSyncUrl() {
   return DEFAULT_SYNC_URL;
+}
+
+function guildPageUrl(code) {
+  const base = configuredBaseUrl();
+  const clean = String(code || guild().roomCode || '').toUpperCase();
+  return base && clean ? `${base}/guild/${clean}` : '';
 }
 
 /* ---------- payload ---------- */
@@ -69,11 +75,11 @@ function adoptMembers(raw) {
 }
 
 function broadcast() {
-  const f = friends();
-  deps.sendToAll('friends:updated', {
-    members: f.snapshot,
-    syncedAt: f.lastSyncAt,
-    error: f.lastError
+  const g = guild();
+  deps.sendToAll('guild:updated', {
+    members: g.snapshot,
+    syncedAt: g.lastSyncAt,
+    error: g.lastError
   });
 }
 
@@ -88,7 +94,7 @@ async function apiRequest(path, body) {
     const res = await fetch(base + path, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
+      body: body === undefined ? undefined : JSON.stringify(body),
       signal: controller.signal
     });
     let data = {};
@@ -100,121 +106,150 @@ async function apiRequest(path, body) {
   }
 }
 
+function cleanCode(code) {
+  return String(code || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
+}
+
 /* ---------- actions ---------- */
 
-async function createRoom({ displayName, baseUrl } = {}) {
-  const f = friends();
+async function createGuild({ displayName, baseUrl } = {}) {
+  const g = guild();
   const name = typeof displayName === 'string' ? displayName.trim().slice(0, MAX_NAME_LEN) : '';
   if (!name) return { ok: false, error: 'Pick a display name first' };
-  if (baseUrl !== undefined) f.baseUrl = String(baseUrl || '').trim().slice(0, 200);
+  if (baseUrl !== undefined) g.baseUrl = String(baseUrl || '').trim().slice(0, 200);
   if (!configuredBaseUrl()) return { ok: false, error: 'Add a sync server URL first' };
-  if (!f.userId) f.userId = deps.uid() + deps.uid();
+  if (!g.userId) g.userId = deps.uid() + deps.uid();
 
   try {
-    const res = await apiRequest('/api/rooms', { userId: f.userId, name });
-    f.roomCode = res.code;
-    f.memberSecret = typeof res.secret === 'string' ? res.secret.slice(0, 128) : null;
-    if (!f.memberSecret) throw new Error('Server did not issue a member secret');
-    f.enabled = true;
-    f.displayName = name;
-    f.snapshot = adoptMembers(res.members);
-    f.lastSyncAt = Date.now();
-    f.lastError = null;
+    const res = await apiRequest('/api/guilds', { userId: g.userId, name });
+    g.roomCode = res.code;
+    g.memberSecret = typeof res.secret === 'string' ? res.secret.slice(0, 128) : null;
+    if (!g.memberSecret) throw new Error('Server did not issue a member secret');
+    g.enabled = true;
+    g.displayName = name;
+    g.snapshot = adoptMembers(res.members);
+    g.lastSyncAt = Date.now();
+    g.lastError = null;
     deps.saveData();
     scheduleSync();
     broadcast();
-    return { ok: true, roomCode: f.roomCode };
+    return { ok: true, roomCode: g.roomCode, pageUrl: guildPageUrl() };
   } catch (e) {
     return { ok: false, error: errorMessage(e) };
   }
 }
 
-async function joinRoom({ code, displayName, baseUrl } = {}) {
-  const f = friends();
+async function joinGuild({ code, displayName, baseUrl } = {}) {
+  const g = guild();
   const name = typeof displayName === 'string' ? displayName.trim().slice(0, MAX_NAME_LEN) : '';
   if (!name) return { ok: false, error: 'Pick a display name first' };
-  const clean = String(code || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
-  if (clean.length !== 6) return { ok: false, error: 'Room codes are 6 characters' };
-  if (baseUrl !== undefined) f.baseUrl = String(baseUrl || '').trim().slice(0, 200);
+  const clean = cleanCode(code);
+  if (clean.length !== 6) return { ok: false, error: 'Guild codes are 6 characters' };
+  if (baseUrl !== undefined) g.baseUrl = String(baseUrl || '').trim().slice(0, 200);
   if (!configuredBaseUrl()) return { ok: false, error: 'Add a sync server URL first' };
-  if (!f.userId) f.userId = deps.uid() + deps.uid();
+  if (!g.userId) g.userId = deps.uid() + deps.uid();
 
   try {
-    const res = await apiRequest(`/api/rooms/${encodeURIComponent(clean)}/members`, {
-      userId: f.userId,
+    const res = await apiRequest(`/api/guilds/${encodeURIComponent(clean)}/members`, {
+      userId: g.userId,
       name,
       stats: buildStats()
     });
     if (typeof res.secret !== 'string' || !res.secret) {
       throw new Error('Server did not issue a member secret');
     }
-    f.roomCode = clean;
-    f.memberSecret = res.secret.slice(0, 128);
-    f.enabled = true;
-    f.displayName = name;
-    f.snapshot = adoptMembers(res.members);
-    f.lastSyncAt = Date.now();
-    f.lastError = null;
+    g.roomCode = clean;
+    g.memberSecret = res.secret.slice(0, 128);
+    g.enabled = true;
+    g.displayName = name;
+    g.snapshot = adoptMembers(res.members);
+    g.lastSyncAt = Date.now();
+    g.lastError = null;
     deps.saveData();
     scheduleSync();
     broadcast();
-    return { ok: true, roomCode: clean };
+    return { ok: true, roomCode: clean, pageUrl: guildPageUrl() };
   } catch (e) {
     return { ok: false, error: errorMessage(e) };
   }
 }
 
+// Spectator mode: view any guild's leaderboard by code — no membership, no name.
+async function viewGuild({ code, baseUrl } = {}) {
+  const g = guild();
+  const clean = cleanCode(code);
+  if (clean.length !== 6) return { ok: false, error: 'Guild codes are 6 characters' };
+  if (baseUrl !== undefined) g.baseUrl = String(baseUrl || '').trim().slice(0, 200);
+  if (!configuredBaseUrl()) return { ok: false, error: 'Add a sync server URL first' };
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    const res = await fetch(`${configuredBaseUrl()}/api/guilds/${encodeURIComponent(clean)}`, {
+      signal: controller.signal
+    });
+    let data = {};
+    try { data = await res.json(); } catch { /* non-JSON */ }
+    if (!res.ok) throw new Error(data.error || `Server responded ${res.status}`);
+    return { ok: true, code: clean, members: adoptMembers(data.members), serverTime: Date.now() };
+  } catch (e) {
+    return { ok: false, error: errorMessage(e) };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function syncNow(reason = 'auto') {
-  const f = friends();
-  if (!f.enabled || !f.roomCode || !f.userId || !f.memberSecret) return { ok: false };
+  const g = guild();
+  if (!g.enabled || !g.roomCode || !g.userId || !g.memberSecret) return { ok: false };
   if (inFlight) return { ok: false, reason: 'already-running' };
   inFlight = true;
   try {
-    const res = await apiRequest(`/api/rooms/${encodeURIComponent(f.roomCode)}/members`, {
-      userId: f.userId,
-      secret: f.memberSecret,
-      name: f.displayName || 'Player',
+    const res = await apiRequest(`/api/guilds/${encodeURIComponent(g.roomCode)}/members`, {
+      userId: g.userId,
+      secret: g.memberSecret,
+      name: g.displayName || 'Player',
       stats: buildStats()
     });
-    f.snapshot = adoptMembers(res.members);
-    f.lastSyncAt = Date.now();
-    f.lastError = null;
+    g.snapshot = adoptMembers(res.members);
+    g.lastSyncAt = Date.now();
+    g.lastError = null;
   } catch (e) {
-    f.lastError = errorMessage(e);
+    g.lastError = errorMessage(e);
   } finally {
     inFlight = false;
   }
   deps.saveData();
   broadcast();
-  return { ok: !f.lastError, error: f.lastError };
+  return { ok: !g.lastError, error: g.lastError };
 }
 
-async function leaveRoom() {
-  const f = friends();
-  if (f.enabled && f.roomCode && f.userId && f.memberSecret) {
-    await apiRequest(`/api/rooms/${encodeURIComponent(f.roomCode)}/leave`, {
-      userId: f.userId,
-      secret: f.memberSecret
+async function leaveGuild() {
+  const g = guild();
+  if (g.enabled && g.roomCode && g.userId && g.memberSecret) {
+    await apiRequest(`/api/guilds/${encodeURIComponent(g.roomCode)}/leave`, {
+      userId: g.userId,
+      secret: g.memberSecret
     }).catch(() => {}); // leaving is best-effort; local state clears regardless
   }
-  f.enabled = false;
-  f.roomCode = null;
-  f.memberSecret = null;
-  f.snapshot = [];
-  f.lastSyncAt = 0;
-  f.lastError = null;
+  g.enabled = false;
+  g.roomCode = null;
+  g.memberSecret = null;
+  g.snapshot = [];
+  g.lastSyncAt = 0;
+  g.lastError = null;
   deps.saveData();
   broadcast();
   return { ok: true };
 }
 
 function setDisplayName(name) {
-  const f = friends();
+  const g = guild();
   const clean = typeof name === 'string' ? name.trim().slice(0, MAX_NAME_LEN) : '';
   if (!clean) return { ok: false, error: 'Name required' };
-  f.displayName = clean;
+  g.displayName = clean;
   deps.saveData();
-  if (f.enabled) syncNow('name-change');
+  if (g.enabled) syncNow('name-change');
   return { ok: true };
 }
 
@@ -236,11 +271,13 @@ function errorMessage(e) {
 module.exports = {
   initSync,
   getDefaultSyncUrl,
+  guildPageUrl,
   sanitizeMember,
-  createRoom,
-  joinRoom,
+  createGuild,
+  joinGuild,
+  viewGuild,
   syncNow,
-  leaveRoom,
+  leaveGuild,
   setDisplayName,
   scheduleSync
 };

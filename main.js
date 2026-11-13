@@ -67,7 +67,7 @@ function defaultData() {
       dailyGoalMinutes: 120,
       trayHintShown: false,
       theme: 'dark',
-      friends: {
+      guild: {
         enabled: false,
         baseUrl: '',
         roomCode: null,
@@ -138,7 +138,8 @@ function sanitizeActiveTimer(t) {
   };
 }
 
-function sanitizeFriends(raw) {
+function sanitizeGuild(raw) {
+  // v1.4.0 stored this under settings.friends — migrate transparently.
   const f = isObj(raw) ? raw : {};
   return {
     enabled: !!f.enabled,
@@ -176,7 +177,7 @@ function sanitizeData(raw) {
       dailyGoalMinutes: Math.round(num(settings.dailyGoalMinutes, 0, 720, base.settings.dailyGoalMinutes)),
       trayHintShown: !!settings.trayHintShown,
       theme: THEMES.includes(settings.theme) ? settings.theme : 'dark',
-      friends: sanitizeFriends(settings.friends)
+      guild: sanitizeGuild(isObj(settings.guild) ? settings.guild : settings.friends)
     },
     activeTimer: sanitizeActiveTimer(raw.activeTimer)
   };
@@ -456,21 +457,22 @@ function stopTickLoop() {
 // The renderer never needs the member secret — strip it from anything
 // broadcast or returned over IPC.
 function publicData() {
-  const f = data.settings.friends;
+  const g = data.settings.guild;
   return {
     ...data,
     settings: {
       ...data.settings,
-      friends: f ? { ...f, memberSecret: undefined } : f
+      guild: g ? { ...g, memberSecret: undefined } : g
     }
   };
 }
 
-function friendsPublicState() {
-  const f = data.settings.friends;
+function guildPublicState() {
+  const g = data.settings.guild;
   return {
-    friends: f ? { ...f, memberSecret: undefined } : f,
-    defaultSyncUrlSet: !!sync.getDefaultSyncUrl()
+    guild: g ? { ...g, memberSecret: undefined } : g,
+    defaultSyncUrlSet: !!sync.getDefaultSyncUrl(),
+    pageUrl: sync.guildPageUrl()
   };
 }
 
@@ -756,7 +758,7 @@ ipcMain.handle('data:get', () => ({
   data: publicData(),
   stats: computeStats(),
   timer: timerSnapshot(),
-  friends: friendsPublicState()
+  guild: guildPublicState()
 }));
 
 ipcMain.handle('todo:add', (_e, textRaw) => {
@@ -845,15 +847,22 @@ ipcMain.handle('theme:set', (_e, theme) => {
   return { theme: data.settings.theme };
 });
 
-ipcMain.handle('friends:get', () => ({ ...friendsPublicState(), myUserId: data.settings.friends.userId }));
-ipcMain.handle('friends:join', (_e, opts) => {
+ipcMain.handle('guild:get', () => ({ ...guildPublicState(), myUserId: data.settings.guild.userId }));
+ipcMain.handle('guild:create', (_e, opts) => {
   const o = isObj(opts) ? opts : {};
-  if (o.mode === 'create') return sync.createRoom({ displayName: o.displayName, baseUrl: o.baseUrl });
-  return sync.joinRoom({ code: o.code, displayName: o.displayName, baseUrl: o.baseUrl });
+  return sync.createGuild({ displayName: o.displayName, baseUrl: o.baseUrl });
 });
-ipcMain.handle('friends:leave', () => sync.leaveRoom());
-ipcMain.handle('friends:refresh', () => sync.syncNow('manual'));
-ipcMain.handle('friends:setName', (_e, name) => sync.setName(name));
+ipcMain.handle('guild:join', (_e, opts) => {
+  const o = isObj(opts) ? opts : {};
+  return sync.joinGuild({ code: o.code, displayName: o.displayName, baseUrl: o.baseUrl });
+});
+ipcMain.handle('guild:view', (_e, opts) => {
+  const o = isObj(opts) ? opts : {};
+  return sync.viewGuild({ code: o.code, baseUrl: o.baseUrl });
+});
+ipcMain.handle('guild:leave', () => sync.leaveGuild());
+ipcMain.handle('guild:refresh', () => sync.syncNow('manual'));
+ipcMain.handle('guild:setName', (_e, name) => sync.setName(name));
 
 ipcMain.handle('overlay:toggle', () => toggleOverlay());
 ipcMain.handle('overlay:hide', () => { if (overlayWindow) overlayWindow.hide(); });

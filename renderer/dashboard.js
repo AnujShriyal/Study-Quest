@@ -6,7 +6,7 @@ const state = {
   pendingGoal: null,
   tab: 'overview',
   activity: { baseTotal: 0, baseActive: 0, todayBase: 0, todayCell: null },
-  friends: {
+  guild: {
     enabled: false,
     roomCode: null,
     members: [],
@@ -15,7 +15,14 @@ const state = {
     myUserId: null,
     displayName: '',
     sort: 'today',
-    defaultSyncUrlSet: false
+    defaultSyncUrlSet: false,
+    pageUrl: '',
+    baseUrl: '',
+    spectating: null,
+    spectatorMembers: [],
+    spectatorSyncedAt: 0,
+    spectatorError: null,
+    specSort: 'today'
   }
 };
 
@@ -378,7 +385,9 @@ function renderLive() {
   renderGreetingSub();
   renderGoal();
   updateActivityLive();
-  updateSyncedLabel();
+  if (state.guild.enabled && state.guild.roomCode) {
+    updateSyncedLabel('guildSynced', state.guild.error, state.guild.syncedAt);
+  }
 }
 
 function renderGoal() {
@@ -944,7 +953,7 @@ function initWindowControls() {
 }
 
 /* ---------- Workspace tabs ---------- */
-const WORKSPACE_TABS = ['overview', 'missions', 'history', 'friends'];
+const WORKSPACE_TABS = ['overview', 'missions', 'history', 'guild'];
 
 function setTabBadge(id, count) {
   const badge = $(id);
@@ -1224,7 +1233,7 @@ $('themeMenu').addEventListener('keydown', (event) => {
 
 $('btnOverlay').addEventListener('click', () => window.api.toggleOverlay());
 
-/* ---------- Friends leaderboard ---------- */
+/* ---------- Guild leaderboard ---------- */
 const FRIEND_AWAY_MS = 2 * 60 * 60 * 1000;
 
 function relTime(ts) {
@@ -1236,83 +1245,94 @@ function relTime(ts) {
   return `${Math.round(s / 86400)}d ago`;
 }
 
-function applyFriendsState(f) {
-  if (!f) return;
-  state.friends.enabled = !!f.enabled;
-  state.friends.roomCode = f.roomCode || null;
-  state.friends.members = Array.isArray(f.snapshot) ? f.snapshot : state.friends.members;
-  state.friends.syncedAt = f.lastSyncAt || 0;
-  state.friends.error = f.lastError || null;
-  state.friends.displayName = f.displayName || '';
-  state.friends.baseUrl = f.baseUrl || '';
+function applyGuildState(g) {
+  if (!g) return;
+  state.guild.enabled = !!g.enabled;
+  state.guild.roomCode = g.roomCode || null;
+  state.guild.members = Array.isArray(g.snapshot) ? g.snapshot : state.guild.members;
+  state.guild.syncedAt = g.lastSyncAt || 0;
+  state.guild.error = g.lastError || null;
+  state.guild.displayName = g.displayName || '';
+  state.guild.baseUrl = g.baseUrl || '';
 }
 
-function showFriendsError(msg) {
-  const el = $('friendsError');
+function showGuildError(msg) {
+  const el = $('guildError');
   if (!el) return;
   el.textContent = msg;
   el.hidden = false;
 }
 
-function hideFriendsError() {
-  const el = $('friendsError');
+function hideGuildError() {
+  const el = $('guildError');
   if (el) el.hidden = true;
 }
 
-function updateSyncedLabel() {
-  const el = $('friendsSynced');
+function updateSyncedLabel(elId, error, syncedAt) {
+  const el = $(elId);
   if (!el) return;
-  el.textContent = state.friends.error
-    ? `offline · last synced ${relTime(state.friends.syncedAt)}`
-    : `synced ${relTime(state.friends.syncedAt)}`;
-  el.classList.toggle('stale', !!state.friends.error);
+  el.textContent = error
+    ? `offline · last synced ${relTime(syncedAt)}`
+    : `synced ${relTime(syncedAt)}`;
+  el.classList.toggle('stale', !!error);
 }
 
-function friendSortKey(m) {
-  return state.friends.sort === 'week' ? m.weekSeconds : m.todaySeconds;
+function guildSortKey(m, sort) {
+  return sort === 'week' ? m.weekSeconds : m.todaySeconds;
 }
 
-function renderFriends() {
-  const joined = state.friends.enabled && !!state.friends.roomCode;
-  $('friendsSetup').hidden = joined;
-  $('friendsBoard').hidden = !joined;
-  $('friendsRoom').hidden = !joined;
-  $('friendsServerRow').hidden = !!state.friends.defaultSyncUrlSet;
+function renderGuild() {
+  const joined = state.guild.enabled && !!state.guild.roomCode;
+  const spectating = !!state.guild.spectating;
+  $('guildSetup').hidden = joined || spectating;
+  $('guildBoard').hidden = !joined;
+  $('guildSpectator').hidden = !spectating;
+  $('guildRoom').hidden = !(joined || spectating);
+  $('guildServerRow').hidden = !!state.guild.defaultSyncUrlSet;
+  $('btnSharePage').hidden = !joined;
 
-  if (!joined) {
-    const nameInput = $('friendName');
-    if (nameInput && !nameInput.value && state.friends.displayName) {
-      nameInput.value = state.friends.displayName;
+  if (!(joined || spectating)) {
+    const nameInput = $('guildName');
+    if (nameInput && !nameInput.value && state.guild.displayName) {
+      nameInput.value = state.guild.displayName;
     }
-    const serverInput = $('friendServer');
-    if (serverInput && !serverInput.value && state.friends.baseUrl) {
-      serverInput.value = state.friends.baseUrl;
+    const serverInput = $('guildServer');
+    if (serverInput && !serverInput.value && state.guild.baseUrl) {
+      serverInput.value = state.guild.baseUrl;
     }
     return;
   }
-  $('roomCodePill').textContent = state.friends.roomCode;
-  renderFriendsList();
-  updateSyncedLabel();
+
+  const code = joined ? state.guild.roomCode : state.guild.spectating;
+  $('guildCodePill').textContent = code;
+  if (spectating) $('spectatorCode').textContent = code;
+
+  if (joined) {
+    renderGuildList($('guildList'), state.guild.members, state.guild.sort, true);
+    updateSyncedLabel('guildSynced', state.guild.error, state.guild.syncedAt);
+  } else {
+    renderGuildList($('spectatorList'), state.guild.spectatorMembers || [], state.guild.specSort, false);
+    updateSyncedLabel('spectatorSynced', state.guild.spectatorError, state.guild.spectatorSyncedAt);
+  }
 }
 
-function renderFriendsList() {
-  const list = $('friendsList');
+function renderGuildList(list, members, sort, showMe) {
   list.innerHTML = '';
-  const members = [...(state.friends.members || [])]
+  const rows = [...(members || [])]
     .filter((m) => m && m.userId)
-    .sort((a, b) => friendSortKey(b) - friendSortKey(a));
+    .sort((a, b) => guildSortKey(b, sort) - guildSortKey(a, sort));
 
-  if (!members.length) {
+  if (!rows.length) {
     const li = document.createElement('li');
     li.className = 'friends-empty';
-    li.appendChild(emptyState('i-users', 'Nobody here yet — share the room code with friends.'));
+    li.appendChild(emptyState('i-shield', 'Nobody here yet — share the guild code with friends.'));
     list.appendChild(li);
     return;
   }
 
   const now = Date.now();
-  members.forEach((m, idx) => {
-    const isMe = m.userId === state.friends.myUserId;
+  rows.forEach((m, idx) => {
+    const isMe = showMe && m.userId === state.guild.myUserId;
     const away = now - (m.lastSeen || 0) > FRIEND_AWAY_MS;
     const li = document.createElement('li');
     li.className = `friend-row${idx === 0 ? ' top-1' : ''}${idx === 1 ? ' top-2' : ''}` +
@@ -1364,103 +1384,174 @@ function renderFriendsList() {
   });
 }
 
-function setFriendsSort(sort) {
-  state.friends.sort = sort === 'week' ? 'week' : 'today';
-  $('sortToday').classList.toggle('is-active', state.friends.sort === 'today');
-  $('sortWeek').classList.toggle('is-active', state.friends.sort === 'week');
-  renderFriendsList();
+function setGuildSort(sort) {
+  state.guild.sort = sort === 'week' ? 'week' : 'today';
+  $('sortToday').classList.toggle('is-active', state.guild.sort === 'today');
+  $('sortWeek').classList.toggle('is-active', state.guild.sort === 'week');
+  renderGuildList($('guildList'), state.guild.members, state.guild.sort, true);
 }
 
-async function friendsJoin(mode) {
-  const name = $('friendName').value.trim();
+function setSpectatorSort(sort) {
+  state.guild.specSort = sort === 'week' ? 'week' : 'today';
+  $('specSortToday').classList.toggle('is-active', state.guild.specSort === 'today');
+  $('specSortWeek').classList.toggle('is-active', state.guild.specSort === 'week');
+  renderGuildList($('spectatorList'), state.guild.spectatorMembers || [], state.guild.specSort, false);
+}
+
+async function guildAction(mode) {
+  const name = $('guildName').value.trim();
   if (!name) {
-    showFriendsError('Pick a display name first');
-    $('friendName').focus();
+    showGuildError('Pick a display name first');
+    $('guildName').focus();
     return;
   }
-  const baseUrl = state.friends.defaultSyncUrlSet ? undefined : $('friendServer').value.trim();
-  const btn = mode === 'create' ? $('btnCreateRoom') : $('btnJoinRoom');
-  hideFriendsError();
+  const baseUrl = state.guild.defaultSyncUrlSet ? undefined : $('guildServer').value.trim();
+  const btn = mode === 'create' ? $('btnCreateGuild') : $('btnJoinGuild');
+  hideGuildError();
   btn.disabled = true;
 
-  const res = await window.api.joinRoom({
-    mode,
-    code: $('friendCode').value,
+  const api = mode === 'create' ? window.api.createGuild : window.api.joinGuild;
+  const res = await api({
+    code: $('guildCode').value,
     displayName: name,
     baseUrl
   }).catch((e) => ({ ok: false, error: String(e) }));
   btn.disabled = false;
 
   if (!res || !res.ok) {
-    showFriendsError(res?.error || 'Could not reach the sync server');
+    showGuildError(res?.error || 'Could not reach the sync server');
     return;
   }
-  state.friends.roomCode = res.roomCode;
-  state.friends.enabled = true;
-  toast(mode === 'create' ? `Room created — code ${res.roomCode}` : `Joined room ${res.roomCode}`, {
-    icon: 'i-users'
+  state.guild.roomCode = res.roomCode;
+  state.guild.enabled = true;
+  state.guild.spectating = null;
+  state.guild.pageUrl = res.pageUrl || state.guild.pageUrl;
+  toast(mode === 'create' ? `Guild created — code ${res.roomCode}` : `Joined guild ${res.roomCode}`, {
+    icon: 'i-shield'
   });
-  renderFriends();
+  renderGuild();
 }
 
-$('btnCreateRoom').addEventListener('click', () => friendsJoin('create'));
-$('btnJoinRoom').addEventListener('click', () => friendsJoin('join'));
-$('friendCode').addEventListener('keydown', (e) => {
+async function spectateView(codeOverride) {
+  const code = codeOverride || $('spectateCode').value;
+  const baseUrl = state.guild.defaultSyncUrlSet ? undefined : $('guildServer').value.trim();
+  hideGuildError();
+  const btn = $('btnViewGuild');
+  btn.disabled = true;
+
+  const res = await window.api.viewGuild({ code, baseUrl })
+    .catch((e) => ({ ok: false, error: String(e) }));
+  btn.disabled = false;
+
+  if (!res || !res.ok) {
+    showGuildError(res?.error || 'Could not reach the sync server');
+    return;
+  }
+  state.guild.spectating = res.code;
+  state.guild.spectatorMembers = res.members;
+  state.guild.spectatorSyncedAt = res.serverTime;
+  state.guild.spectatorError = null;
+  renderGuild();
+}
+
+$('btnCreateGuild').addEventListener('click', () => guildAction('create'));
+$('btnJoinGuild').addEventListener('click', () => guildAction('join'));
+$('guildCode').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') {
     e.preventDefault();
-    friendsJoin('join');
+    guildAction('join');
   }
 });
-$('friendName').addEventListener('keydown', (e) => {
+$('guildName').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') {
     e.preventDefault();
-    friendsJoin('create');
+    guildAction('create');
   }
 });
-$('friendCode').addEventListener('input', (e) => {
+$('guildCode').addEventListener('input', (e) => {
   e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
 });
+$('spectateCode').addEventListener('input', (e) => {
+  e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+});
+$('spectateCode').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    spectateView();
+  }
+});
+$('btnViewGuild').addEventListener('click', () => spectateView());
 
-$('btnCopyRoom').addEventListener('click', async () => {
-  const code = state.friends.roomCode || $('roomCodePill').textContent;
+$('btnJoinFromSpectate').addEventListener('click', () => {
+  const code = state.guild.spectating || '';
+  state.guild.spectating = null;
+  $('guildCode').value = code;
+  renderGuild();
+  $('guildName').focus();
+});
+
+$('btnCopyCode').addEventListener('click', async () => {
+  const code = state.guild.roomCode || $('guildCodePill').textContent;
   try {
     await navigator.clipboard.writeText(code);
-    toast(`Room code ${code} copied`, { icon: 'i-copy' });
+    toast(`Guild code ${code} copied`, { icon: 'i-copy' });
   } catch {
-    toast(`Room code: ${code}`);
+    toast(`Guild code: ${code}`);
   }
 });
 
-$('btnRefreshFriends').addEventListener('click', async (e) => {
+$('btnSharePage').addEventListener('click', async () => {
+  const url = state.guild.pageUrl;
+  if (!url) {
+    toast('Public page not available yet', { tone: 'danger' });
+    return;
+  }
+  try {
+    await navigator.clipboard.writeText(url);
+    toast('Public leaderboard link copied', { icon: 'i-share' });
+  } catch {
+    toast(`Public page: ${url}`);
+  }
+});
+
+$('btnRefreshGuild').addEventListener('click', async (e) => {
   const btn = e.currentTarget;
   btn.disabled = true;
-  const res = await window.api.refreshFriends().catch(() => ({ ok: false, error: 'Not connected' }));
+  const res = await window.api.refreshGuild().catch(() => ({ ok: false, error: 'Not connected' }));
   btn.disabled = false;
   if (res && res.ok) toast('Leaderboard updated', { icon: 'i-check' });
   else if (res && res.error) toast(res.error, { tone: 'danger' });
 });
 
-$('btnLeaveRoom').addEventListener('click', async () => {
-  const res = await window.api.leaveRoom().catch(() => ({ ok: false }));
+$('btnSpecRefresh').addEventListener('click', async () => {
+  await spectateView(state.guild.spectating);
+  toast('Leaderboard updated', { icon: 'i-check' });
+});
+
+$('btnLeaveGuild').addEventListener('click', async () => {
+  const res = await window.api.leaveGuild().catch(() => ({ ok: false }));
   if (res && res.ok) {
-    state.friends.enabled = false;
-    state.friends.roomCode = null;
-    state.friends.members = [];
-    state.friends.syncedAt = 0;
-    state.friends.error = null;
-    toast('Left the room', { tone: 'danger' });
-    renderFriends();
+    state.guild.enabled = false;
+    state.guild.roomCode = null;
+    state.guild.members = [];
+    state.guild.syncedAt = 0;
+    state.guild.error = null;
+    state.guild.pageUrl = '';
+    toast('Left the guild', { tone: 'danger' });
+    renderGuild();
   }
 });
 
-$('sortToday').addEventListener('click', () => setFriendsSort('today'));
-$('sortWeek').addEventListener('click', () => setFriendsSort('week'));
+$('sortToday').addEventListener('click', () => setGuildSort('today'));
+$('sortWeek').addEventListener('click', () => setGuildSort('week'));
+$('specSortToday').addEventListener('click', () => setSpectatorSort('today'));
+$('specSortWeek').addEventListener('click', () => setSpectatorSort('week'));
 
-window.api.onFriendsUpdated((payload) => {
-  state.friends.members = Array.isArray(payload.members) ? payload.members : [];
-  state.friends.syncedAt = payload.syncedAt || 0;
-  state.friends.error = payload.error || null;
-  renderFriends();
+window.api.onGuildUpdated((payload) => {
+  state.guild.members = Array.isArray(payload.members) ? payload.members : [];
+  state.guild.syncedAt = payload.syncedAt || 0;
+  state.guild.error = payload.error || null;
+  renderGuild();
 });
 
 /* ---------- Live updates ---------- */
@@ -1513,12 +1604,13 @@ window.api.onGoalReached(({ goalMinutes }) => {
   state.timer = res.timer;
   applyTheme(res.data?.settings?.theme || 'dark');
 
-  const friends = await window.api.getFriends().catch(() => null);
-  if (friends) {
-    applyFriendsState(friends.friends);
-    state.friends.myUserId = friends.myUserId || null;
-    state.friends.defaultSyncUrlSet = !!friends.defaultSyncUrlSet;
+  const guild = await window.api.getGuild().catch(() => null);
+  if (guild) {
+    applyGuildState(guild.guild);
+    state.guild.myUserId = guild.myUserId || null;
+    state.guild.defaultSyncUrlSet = !!guild.defaultSyncUrlSet;
+    state.guild.pageUrl = guild.pageUrl || '';
   }
   renderAll();
-  renderFriends();
+  renderGuild();
 })();
