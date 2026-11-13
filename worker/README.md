@@ -61,6 +61,16 @@ Members not seen for 30 days are dropped. Max 50 members per guild.
 The secret is issued once at join and stored server-side only as a SHA-256
 hash; every sync must present it.)
 
+### Anti-cheat: the physics cap
+
+A member can never gain more study seconds than real seconds elapsed since
+their previous sync. A genuine day reset is a *decrease* (always accepted),
+and decreases re-baseline the cap — so editing the data file, curl-posting
+huge numbers, or drop-then-spike tricks all get capped to physically
+possible amounts. Residual gaps: a leave+rejoin resets your baseline once,
+and a deliberately scripted gradual fake is indistinguishable from
+studying — that part stays honor-system.
+
 `stats = { todaySeconds, weekSeconds, streak, level, totalSeconds }`.
 Members not seen for 30 days are dropped. Max 50 members per room.
 The secret is issued once at join and stored server-side only as a SHA-256

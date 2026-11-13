@@ -89,7 +89,17 @@ function upsertMember(res, code, body) {
     if (!clampStr(body.secret, 128) || sha256(body.secret) !== existing.secretHash) {
       return respond(res, 403, { error: 'Unknown member for this guild' });
     }
-    Object.assign(existing, clampStats(body.stats), { name, lastSeen: now });
+    // Anti-cheat physics cap: never gain more study seconds than real
+    // seconds elapsed since the last sync (a genuine day reset is a
+    // DECREASE, always allowed). Decreases re-baseline, so drop-then-spike
+    // oscillation defeats itself.
+    const stats = clampStats(body.stats);
+    const elapsedSec = Math.max(0, Math.floor((now - existing.lastSeen) / 1000));
+    const maxToday = existing.todaySeconds + elapsedSec;
+    const maxWeek = existing.weekSeconds + elapsedSec;
+    if (stats.todaySeconds > maxToday) stats.todaySeconds = maxToday;
+    if (stats.weekSeconds > maxWeek) stats.weekSeconds = maxWeek;
+    Object.assign(existing, stats, { name, lastSeen: now });
   } else {
     if (!liveMemberCount(code)) return respond(res, 404, { error: 'Guild not found — check the code, or it expired' });
     if (liveMemberCount(code) >= MAX_MEMBERS) return respond(res, 403, { error: 'This guild is full' });

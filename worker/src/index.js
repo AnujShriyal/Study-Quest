@@ -97,7 +97,7 @@ async function upsertMember(env, request, code) {
   const stats = clampStats(body.stats);
 
   const existing = await env.DB.prepare(
-    'SELECT secret_hash FROM members WHERE room = ? AND user_id = ?'
+    'SELECT secret_hash, today_seconds, week_seconds, last_seen FROM members WHERE room = ? AND user_id = ?'
   ).bind(code, userId).first();
 
   if (!existing) {
@@ -113,6 +113,20 @@ async function upsertMember(env, request, code) {
     if (!clampStr(body.secret, 128) || (await sha256(body.secret)) !== existing.secret_hash) {
       return json({ error: 'Unknown member for this guild' }, 403);
     }
+
+    // ---- anti-cheat physics cap ----
+    // An honest client can never report more study seconds than real
+    // seconds elapsed since its previous sync (the window spans local
+    // midnight cleanly, because a genuine day reset is a DECREASE, which
+    // is always allowed). Claims above old-value + elapsed are capped;
+    // decreases are accepted and re-baseline, so drop-then-spike
+    // oscillation defeats itself.
+    const elapsedSec = Math.max(0, Math.floor((now - existing.last_seen) / 1000));
+    const maxToday = existing.today_seconds + elapsedSec;
+    const maxWeek = existing.week_seconds + elapsedSec;
+    if (stats.todaySeconds > maxToday) stats.todaySeconds = maxToday;
+    if (stats.weekSeconds > maxWeek) stats.weekSeconds = maxWeek;
+
     await env.DB.prepare(
       `UPDATE members SET name = ?, today_seconds = ?, week_seconds = ?, streak = ?,
        level = ?, total_seconds = ?, last_seen = ? WHERE room = ? AND user_id = ?`
