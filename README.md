@@ -63,16 +63,23 @@ leaderboard syncs aggregate stats through a tiny server you deploy once.
 - UI text uses the bundled Inter variable font (`assets/fonts/`, SIL Open Font
   License); the timer keeps the monospaced Cascadia font so digits never jitter.
 
-### Friends leaderboard
+### Guilds
 
-- A fourth **Friends** tab: create a room and share its 6-character code, or
-  join a friend's room. No accounts, no signup — the room code is the group.
-- Everyone in the room sees each other's display name, today's study time,
+- A fourth **Guild** tab: create a guild and share its 6-character code, or
+  join a friend's guild. No accounts, no signup — the guild code is the group.
+- Everyone in the guild sees each other's display name, today's study time,
   this week's time, streak, level, and total time, with Today/This week
   sorting and top-3 highlighting.
+- **The leaderboard is visible to all**:
+  - Anyone with a guild code can view its leaderboard as a guest (in-app,
+    no joining needed — "Just watching?" in the Guild tab).
+  - Every guild gets a **public shareable web page** at
+    `https://<your-worker>/guild/<code>` — members copy the link from the
+    share button. Anyone can watch it in a browser; joining still requires
+    the app.
 - Identity is a random ID generated locally plus a per-member secret issued
   once by the server (stored only as a hash) so nobody can post as someone
-  else. "Leave room" deletes your row; rooms idle for 30 days are cleaned up.
+  else. "Leave guild" deletes your row; guilds idle for 30 days are cleaned up.
 - Aggregates sync when the app starts, every 10 minutes, after each saved
   session, and on manual refresh. Offline, the last snapshot stays visible
   with its age.

@@ -1874,8 +1874,8 @@ html:not([data-theme="legacy"]) .empty-hint { padding: 28px 14px; }
    Friends leaderboard
    Built purely from theme tokens so dark, light, and legacy all skin it.
    ========================================================================== */
-.friends-panel { display: flex; }
-.friends-card {
+.guild-panel { display: flex; }
+.guild-card {
   flex: 1;
   min-height: 0;
   display: flex;
@@ -1883,43 +1883,43 @@ html:not([data-theme="legacy"]) .empty-hint { padding: 28px 14px; }
   padding: 16px 18px 12px;
   overflow: hidden;
 }
-.friends-room {
+.guild-room {
   display: flex;
   align-items: center;
   gap: 5px;
 }
-.friends-room .meta-pill { font-size: 10.5px; letter-spacing: 1px; }
-.friends-room .icon-btn { width: 26px; height: 24px; border-radius: 7px; }
+.guild-room .meta-pill { font-size: 10.5px; letter-spacing: 1px; }
+.guild-room .icon-btn { width: 26px; height: 24px; border-radius: 7px; }
 
 /* ----- setup state ----- */
-.friends-setup {
+.guild-setup {
   display: flex;
   flex-direction: column;
   gap: 12px;
   margin-top: 10px;
 }
-.friends-explain {
+.guild-explain {
   color: var(--text-muted);
   font-size: 11.5px;
   line-height: 1.55;
   max-width: 52ch;
 }
-.friends-field { display: flex; flex-direction: column; gap: 6px; }
-.friends-setup-actions {
+.guild-field { display: flex; flex-direction: column; gap: 6px; }
+.guild-setup-actions {
   display: flex;
   align-items: stretch;
   gap: 8px;
   flex-wrap: wrap;
 }
-.friends-create { flex: none; padding: 0 18px; height: 42px; }
-.friends-join {
+.guild-create { flex: none; padding: 0 18px; height: 42px; }
+.guild-join {
   display: flex;
   gap: 6px;
   flex: 1;
   min-width: 210px;
 }
-.friends-join .btn-ghost { height: 42px; padding: 0 16px; }
-.friends-code {
+.guild-join .btn-ghost { height: 42px; padding: 0 16px; }
+.guild-code {
   width: 128px;
   flex: none;
   text-align: center;
@@ -1928,7 +1928,7 @@ html:not([data-theme="legacy"]) .empty-hint { padding: 28px 14px; }
   font-family: var(--mono);
   font-size: 13px;
 }
-.friends-error {
+.guild-error {
   color: var(--rose);
   font-size: 11px;
   line-height: 1.45;
@@ -2090,3 +2090,42 @@ html:not([data-theme="legacy"]) .empty-hint { padding: 28px 14px; }
   padding-top: 7px;
   border-top: 1px solid var(--line);
 }
+
+/* ---------- Guild spectator mode ---------- */
+.guild-board {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  margin-top: 10px;
+}
+.guild-spectate {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.guild-spectate .kicker { color: var(--text-faint); }
+.guild-spectate-row { display: flex; gap: 6px; }
+.guild-spectate-row .guild-code { width: 128px; }
+.guild-spectate-row .btn-ghost { height: 42px; padding: 0 16px; }
+.guild-spectate-hint {
+  margin: 0;
+  color: var(--text-faint);
+  font-size: 10px;
+  line-height: 1.45;
+}
+.guild-spectator-note {
+  margin: 10px 0 0;
+  color: var(--text-muted);
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+.guild-spectator-note b {
+  color: var(--teal);
+  letter-spacing: 1.5px;
+}
+.guild-spectator .guild-board { margin-top: 8px; }
+.guild-spectator .friends-foot { justify-content: space-between; }
