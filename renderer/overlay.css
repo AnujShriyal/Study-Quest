@@ -425,6 +425,17 @@ html, body {
 .overlay-card[data-size="micro"] .controls { padding: 4px 6px; }
 .overlay-card[data-size="micro"] #btnAction { height: 28px; padding-left: 22px; font-size: 10px; border-radius: 8px; }
 .overlay-card[data-size="micro"] .mini-stop { width: 28px; height: 28px; border-radius: 8px; }
+.overlay-card[data-size="micro"] .ov-brand,
+.overlay-card[data-size="micro"] .ov-state { display: none; }
+.overlay-card[data-size="micro"] .controls { gap: 5px; }
+.overlay-card[data-size="micro"] #btnAction { width: 34px; min-width: 34px; padding: 0; justify-content: center; }
+.overlay-card[data-size="micro"] #actionLabel { display: none; }
+.overlay-card[data-size="micro"] #btnAction .action-icon { display: block; width: 14px; height: 14px; }
+.overlay-card[data-size="micro"] .mini-stop { flex: 0 0 28px; }
+.resize-grip { touch-action: none; }
+.overlay-error { color: var(--rose); font-size: 11px; padding: 4px 8px; }
+.overlay-card:not([data-size="micro"]) #btnAction .action-icon { display: none; }
+.overlay-card[data-size="micro"] #btnAction::before { display: none; }
 
 /* mini/micro: the window auto-hugs its content — the list never flexes */
 .overlay-card[data-size="mini"] .mini-todo ul,

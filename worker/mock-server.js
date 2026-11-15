@@ -6,7 +6,9 @@
 const http = require('http');
 const crypto = require('crypto');
 
-const PORT = 8787;
+const PORT = Number(process.env.STUDY_QUEST_PORT || 8787);
+let clockNow = () => Date.now();
+if (process.send) process.on('message', (message) => { if (message && Number.isFinite(message.now)) { clockNow = () => message.now; process.send({clockSet:true,now:message.now}); } });
 const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 const CODE_LEN = 6;
 const MAX_NAME_LEN = 24;
@@ -48,7 +50,7 @@ const server = http.createServer(async (req, res) => {
     return respond(res, 404, { error: 'Not found' });
   } catch (err) {
     console.error(err);
-    return respond(res, 500, { error: 'Server error' });
+    return respond(res, err && err.status === 400 ? 400 : 500, { error: err && err.status === 400 ? err.message : 'Server error' });
   }
 });
 
@@ -65,13 +67,17 @@ function createGuild(res, body) {
   guilds.set(code, new Map());
 
   const secret = genSecret();
+  const stats = clampStats(body.stats);
+  const day = dateInZone(clockNow(), stats.timeZone);
   guilds.get(code).set(userId, {
     name,
     secretHash: sha256(secret),
-    ...clampStats(body.stats),
-    lastSeen: Date.now()
+    ...stats,
+    dailySeconds: stats.dailySeconds.filter(d=>d.date>=shiftDate(day,-6)&&d.date<=day),
+    todayDate: day, capToday: 0, capWeek: 0,
+    lastSeen: clockNow()
   });
-  respond(res, 200, { code, secret, members: liveMembers(code), serverTime: Date.now() });
+  respond(res, 200, { code, secret, members: liveMembers(code), serverTime: clockNow() });
 }
 
 function upsertMember(res, code, body) {
@@ -80,11 +86,12 @@ function upsertMember(res, code, body) {
   if (!userId) return respond(res, 400, { error: 'userId required' });
 
   const guild = guilds.get(code);
-  const now = Date.now();
+  const now = clockNow();
   if (!guild) return respond(res, 404, { error: 'Guild not found — check the code, or it expired' });
   gcGuild(code);
 
   const existing = guild.get(userId);
+  const stats = clampStats(body.stats);
   if (existing) {
     if (!clampStr(body.secret, 128) || sha256(body.secret) !== existing.secretHash) {
       return respond(res, 403, { error: 'Unknown member for this guild' });
@@ -93,13 +100,24 @@ function upsertMember(res, code, body) {
     // seconds elapsed since the last sync (a genuine day reset is a
     // DECREASE, always allowed). Decreases re-baseline, so drop-then-spike
     // oscillation defeats itself.
-    const stats = clampStats(body.stats);
     const elapsedSec = Math.max(0, Math.floor((now - existing.lastSeen) / 1000));
-    const maxToday = existing.todaySeconds + elapsedSec;
-    const maxWeek = existing.weekSeconds + elapsedSec;
-    if (stats.todaySeconds > maxToday) stats.todaySeconds = maxToday;
-    if (stats.weekSeconds > maxWeek) stats.weekSeconds = maxWeek;
-    Object.assign(existing, stats, { name, lastSeen: now });
+    const day = dateInZone(now, stats.timeZone);
+    const old = (existing.dailySeconds || []).filter(d=>d.date>=shiftDate(day,-6)&&d.date<=day);
+    const oldByDate=new Map(old.map(d=>[d.date,d.seconds]));
+    const oldToday = oldByDate.get(day)||0;
+    const oldWeek = old.reduce((n,d)=>n+d.seconds,0);
+    let bt=(existing.capToday||0)+elapsedSec, bw=(existing.capWeek||0)+elapsedSec;
+    const buckets=stats.dailySeconds.filter(d=>d.date>=shiftDate(day,-6)&&d.date<=day);
+    const positive=buckets.reduce((n,d)=>n+Math.max(0,d.seconds-(oldByDate.get(d.date)||0)),0);
+    let remaining=bw;
+    for(const d of [...buckets].sort((a,b)=>b.date.localeCompare(a.date))){const base=oldByDate.get(d.date)||0;const rise=Math.max(0,d.seconds-base);const allowed=Math.min(rise,remaining);d.seconds=Math.min(d.seconds,base+allowed);remaining-=allowed;}
+    const todayBucket=buckets.find(d=>d.date===day);
+    if(todayBucket&&todayBucket.seconds>oldToday+bt)todayBucket.seconds=oldToday+bt;
+    const today=todayBucket?.seconds||0;
+    if(today>oldToday)bt=Math.max(0,bt-(today-oldToday));else if(today<oldToday)bt=0;
+    bw=buckets.reduce((n,d)=>n+d.seconds,0)<oldWeek?0:Math.max(0,bw-Math.min(positive,bw));
+    if(!todayBucket)buckets.push({date:day,seconds:0});
+    Object.assign(existing, stats, {todaySeconds:today,weekSeconds:buckets.reduce((n,d)=>n+d.seconds,0),dailySeconds:buckets,todayDate:day,capToday:bt,capWeek:bw,name,lastSeen:now});
   } else {
     if (!liveMemberCount(code)) return respond(res, 404, { error: 'Guild not found — check the code, or it expired' });
     if (liveMemberCount(code) >= MAX_MEMBERS) return respond(res, 403, { error: 'This guild is full' });
@@ -107,8 +125,8 @@ function upsertMember(res, code, body) {
     guild.set(userId, {
       name,
       secretHash: sha256(secret),
-      ...clampStats(body.stats),
-      lastSeen: now
+      ...stats,
+      lastSeen: now, todayDate: dateInZone(now, stats.timeZone), capToday: 0, capWeek: 0
     });
     return respond(res, 200, { secret, members: liveMembers(code), serverTime: now });
   }
@@ -120,7 +138,7 @@ function getGuild(res, code) {
   if (!guilds.has(code) || liveMemberCount(code) === 0) {
     return respond(res, 404, { error: 'Guild not found — check the code, or it expired' });
   }
-  respond(res, 200, { members: liveMembers(code), serverTime: Date.now() });
+  respond(res, 200, { members: liveMembers(code), serverTime: clockNow() });
 }
 
 function leaveGuild(res, code, body) {
@@ -147,7 +165,7 @@ function guildPage(res, code) {
       '<p class="hint">This guild does not exist, or everyone left. Check the link — codes expire after 30 quiet days.</p>'));
   }
 
-  const now = Date.now();
+  const now = clockNow();
   const sorted = liveMembers(code);
   const rows = sorted.map((m, i) => {
     const away = now - m.lastSeen > 2 * 3600 * 1000;
@@ -260,14 +278,15 @@ function fmtDur(totalSeconds) {
 function liveMembers(code) {
   const guild = guilds.get(code);
   if (!guild) return [];
-  const cutoff = Date.now() - MEMBER_TTL_MS;
+  const cutoff = clockNow() - MEMBER_TTL_MS;
   return [...guild.entries()]
     .filter(([, m]) => m.lastSeen > cutoff)
     .map(([userId, m]) => ({
       userId,
       name: m.name,
-      todaySeconds: m.todaySeconds,
-      weekSeconds: m.weekSeconds,
+      todaySeconds: (m.dailySeconds||[]).find(d=>d.date===dateInZone(clockNow(),m.timeZone))?.seconds || 0,
+      weekSeconds: (m.dailySeconds||[]).filter(d=>d.date>=shiftDate(dateInZone(clockNow(),m.timeZone),-6)&&d.date<=dateInZone(clockNow(),m.timeZone)).reduce((n,d)=>n+d.seconds,0),
+      todayDate: dateInZone(clockNow(),m.timeZone||'UTC'), timeZone:m.timeZone||'UTC',
       streak: m.streak,
       level: m.level,
       totalSeconds: m.totalSeconds,
@@ -277,7 +296,7 @@ function liveMembers(code) {
 }
 
 function liveMemberCount(code) {
-  const cutoff = Date.now() - MEMBER_TTL_MS;
+  const cutoff = clockNow() - MEMBER_TTL_MS;
   const guild = guilds.get(code);
   return guild ? [...guild.values()].filter((m) => m.lastSeen > cutoff).length : 0;
 }
@@ -285,7 +304,7 @@ function liveMemberCount(code) {
 function gcGuild(code) {
   const guild = guilds.get(code);
   if (!guild) return;
-  const cutoff = Date.now() - MEMBER_TTL_MS;
+  const cutoff = clockNow() - MEMBER_TTL_MS;
   for (const [id, m] of guild) if (m.lastSeen < cutoff) guild.delete(id);
   if (guild.size === 0) guilds.delete(code);
 }
@@ -296,14 +315,22 @@ function gcAll() {
 
 function clampStats(raw) {
   const s = raw && typeof raw === 'object' ? raw : {};
+  const daily=new Map();
+  for(const d of Array.isArray(s.dailySeconds)?s.dailySeconds:[]){if(!d||!/^\d{4}-\d{2}-\d{2}$/.test(d.date))continue;daily.set(d.date,Math.max(daily.get(d.date)||0,clampInt(d.seconds,0,MAX_SECONDS_PER_DAY)));}
   return {
     todaySeconds: clampInt(s.todaySeconds, 0, MAX_SECONDS_PER_DAY),
     weekSeconds: clampInt(s.weekSeconds, 0, MAX_SECONDS_PER_WEEK),
     streak: clampInt(s.streak, 0, 3650),
     level: clampInt(s.level, 1, 100_000),
-    totalSeconds: clampInt(s.totalSeconds, 0, 100 * 365 * MAX_SECONDS_PER_DAY)
+    totalSeconds: clampInt(s.totalSeconds, 0, 100 * 365 * MAX_SECONDS_PER_DAY),
+    todayDate: /^\d{4}-\d{2}-\d{2}$/.test(s.todayDate) ? s.todayDate : new Date().toISOString().slice(0,10),
+    timeZone: validZone(s.timeZone) ? s.timeZone : 'UTC',
+    dailySeconds: [...daily.entries()].sort(([a],[b])=>a.localeCompare(b)).slice(-7).map(([date,seconds])=>({date,seconds}))
   };
 }
+function validZone(z){try{new Intl.DateTimeFormat('en-US',{timeZone:z}).format();return typeof z==='string'&&z.length<=64;}catch{return false;}}
+function dateInZone(ms,z){return new Intl.DateTimeFormat('en-CA',{timeZone:validZone(z)?z:'UTC',year:'numeric',month:'2-digit',day:'2-digit'}).format(ms);}
+function shiftDate(d,o){const x=new Date(`${d}T12:00:00Z`);x.setUTCDate(x.getUTCDate()+o);return x.toISOString().slice(0,10);}
 
 function clampInt(v, min, max) {
   const n = Number(v);
@@ -337,7 +364,7 @@ function sha256(text) {
 
 function rateLimit(req) {
   const ip = req.socket.remoteAddress || 'unknown';
-  const now = Date.now();
+  const now = clockNow();
   let bucket = rateBuckets.get(ip);
   if (!bucket || now - bucket.start > 60_000) {
     bucket = { start: now, count: 0 };
@@ -349,11 +376,12 @@ function rateLimit(req) {
 }
 
 function readBody(req) {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     let raw = '';
-    req.on('data', (c) => { raw += c; if (raw.length > 64_000) req.destroy(); });
-    req.on('end', () => { try { resolve(JSON.parse(raw || '{}')); } catch { resolve({}); } });
-    req.on('error', () => resolve({}));
+    let bytes=0,failed=false;
+    req.on('data', (c) => { bytes+=c.length;if(bytes>65_536){if(!failed){failed=true;const e=new Error('Request body too large');e.status=400;reject(e);}req.resume();return;}raw += c; });
+    req.on('end', () => { if(failed)return;try { const v=JSON.parse(raw || '{}'); if(!v||typeof v!=='object'||Array.isArray(v))throw 0; resolve(v); } catch { const e=new Error('Malformed JSON body');e.status=400;reject(e); } });
+    req.on('error', () => { const e=new Error('Malformed request body');e.status=400;reject(e); });
   });
 }
 

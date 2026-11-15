@@ -33,7 +33,7 @@ export default {
 
       // Public guild page — no code-gated API, just the shareable link.
       if (request.method === 'GET' && parts[0] === 'guild' && parts.length === 2) {
-        return guildPage(env, String(parts[1] || '').toUpperCase());
+        return await guildPage(env, String(parts[1] || '').toUpperCase());
       }
 
       // API — /api/guilds/* is canonical; legacy /api/rooms/* still accepted.
@@ -41,22 +41,22 @@ export default {
         return json({ error: 'Not found' }, 404);
       }
 
-      if (request.method === 'POST' && parts.length === 2) return createGuild(env, request);
+      if (request.method === 'POST' && parts.length === 2) return await createGuild(env, request);
 
       const code = String(parts[2] || '').toUpperCase();
       if (!isCode(code)) return json({ error: 'Invalid guild code' }, 400);
 
-      if (request.method === 'GET' && parts.length === 3) return getGuild(env, code);
+      if (request.method === 'GET' && parts.length === 3) return await getGuild(env, code);
       if (request.method === 'POST' && parts.length === 4 && parts[3] === 'members') {
-        return upsertMember(env, request, code);
+        return await upsertMember(env, request, code);
       }
       if (request.method === 'POST' && parts.length === 4 && parts[3] === 'leave') {
-        return leaveGuild(env, request, code);
+        return await leaveGuild(env, request, code);
       }
       return json({ error: 'Not found' }, 404);
     } catch (err) {
       console.error('worker error', err);
-      return json({ error: 'Server error' }, 500);
+      return json({ error: err && err.status === 400 ? err.message : 'Server error' }, err && err.status === 400 ? 400 : 500);
     }
   }
 };
@@ -81,9 +81,12 @@ async function createGuild(env, request) {
 
   const secret = genSecret();
   const now = Date.now();
+  const stats = clampStats(body.stats);
   await env.DB.prepare(
-    'INSERT INTO members (room, user_id, name, secret_hash, last_seen) VALUES (?, ?, ?, ?, ?)'
-  ).bind(code, userId, name, await sha256(secret), now).run();
+    `INSERT INTO members (room, user_id, name, secret_hash, today_seconds, week_seconds, streak, level, total_seconds, last_seen, daily_json, time_zone, today_date, cap_today, cap_week)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0)`
+  ).bind(code, userId, name, await sha256(secret), stats.todaySeconds, stats.weekSeconds, stats.streak,
+    stats.level, stats.totalSeconds, now, JSON.stringify(stats.dailySeconds), stats.timeZone, stats.todayDate).run();
 
   return json({ code, secret, members: await liveMembers(env, code), serverTime: now });
 }
@@ -97,7 +100,7 @@ async function upsertMember(env, request, code) {
   const stats = clampStats(body.stats);
 
   const existing = await env.DB.prepare(
-    'SELECT secret_hash, today_seconds, week_seconds, last_seen FROM members WHERE room = ? AND user_id = ?'
+    'SELECT secret_hash, today_seconds, week_seconds, last_seen, daily_json, time_zone, today_date, cap_today, cap_week FROM members WHERE room = ? AND user_id = ?'
   ).bind(code, userId).first();
 
   if (!existing) {
@@ -122,16 +125,42 @@ async function upsertMember(env, request, code) {
     // decreases are accepted and re-baseline, so drop-then-spike
     // oscillation defeats itself.
     const elapsedSec = Math.max(0, Math.floor((now - existing.last_seen) / 1000));
-    const maxToday = existing.today_seconds + elapsedSec;
-    const maxWeek = existing.week_seconds + elapsedSec;
-    if (stats.todaySeconds > maxToday) stats.todaySeconds = maxToday;
-    if (stats.weekSeconds > maxWeek) stats.weekSeconds = maxWeek;
+    const old = parseDaily(existing.daily_json);
+    const localDate = dateInZone(now, stats.timeZone);
+    let current = old.filter((d) => d.date >= shiftDate(localDate, -6) && d.date <= localDate);
+    const oldWeek = current.reduce((sum, d) => sum + d.seconds, 0);
+    let budgetToday = (Number(existing.cap_today) || 0) + elapsedSec;
+    let budgetWeek = (Number(existing.cap_week) || 0) + elapsedSec;
+    current = stats.dailySeconds.filter((d) => d.date >= shiftDate(localDate, -6) && d.date <= localDate);
+    const oldByDate = new Map(old.map((d) => [d.date, d.seconds]));
+    let positive = current.reduce((n,d) => n + Math.max(0,d.seconds-(oldByDate.get(d.date)||0)), 0);
+    let remaining = budgetWeek;
+    for (const d of [...current].sort((a,b)=>b.date.localeCompare(a.date))) {
+      const baseline = oldByDate.get(d.date)||0;
+      const rise = Math.max(0,d.seconds-baseline);
+      const allowed = Math.min(rise, remaining);
+      d.seconds = Math.min(d.seconds, baseline+allowed);
+      remaining -= allowed;
+    }
+    const todayBucket0 = current.find((d) => d.date === localDate);
+    const oldToday = oldByDate.get(localDate)||0;
+    if (todayBucket0 && todayBucket0.seconds > oldToday + budgetToday) todayBucket0.seconds = oldToday + budgetToday;
+    const claimedToday0 = todayBucket0?.seconds ?? 0;
+    if (claimedToday0 > oldToday) budgetToday = Math.max(0,budgetToday-(claimedToday0-oldToday));
+    else if (claimedToday0 < oldToday) budgetToday = 0;
+    const claimedWeekSum=current.reduce((sum,d)=>sum+d.seconds,0);
+    budgetWeek = claimedWeekSum < oldWeek ? 0 : Math.max(0,budgetWeek-Math.min(positive,budgetWeek));
+    const claimedToday = claimedToday0;
+    const todayBucket = current.find((d) => d.date === localDate);
+    if (todayBucket) todayBucket.seconds = Math.min(todayBucket.seconds, claimedToday);
+    else current.push({ date: localDate, seconds: claimedToday });
+    const boundedWeek = current.reduce((sum, d) => sum + d.seconds, 0);
 
     await env.DB.prepare(
       `UPDATE members SET name = ?, today_seconds = ?, week_seconds = ?, streak = ?,
-       level = ?, total_seconds = ?, last_seen = ? WHERE room = ? AND user_id = ?`
-    ).bind(name, stats.todaySeconds, stats.weekSeconds, stats.streak, stats.level,
-      stats.totalSeconds, now, code, userId).run();
+       level = ?, total_seconds = ?, last_seen = ?, daily_json = ?, time_zone = ?, today_date = ?, cap_today = ?, cap_week = ? WHERE room = ? AND user_id = ?`
+    ).bind(name, claimedToday, boundedWeek, stats.streak, stats.level,
+      stats.totalSeconds, now, JSON.stringify(current), stats.timeZone, localDate, budgetToday, budgetWeek, code, userId).run();
   } else {
     const count = await env.DB.prepare(
       'SELECT COUNT(*) AS n FROM members WHERE room = ? AND last_seen > ?'
@@ -141,9 +170,9 @@ async function upsertMember(env, request, code) {
     const secret = genSecret();
     await env.DB.prepare(
       `INSERT INTO members (room, user_id, name, secret_hash, today_seconds, week_seconds,
-       streak, level, total_seconds, last_seen) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+       streak, level, total_seconds, last_seen, daily_json, time_zone, today_date, cap_today, cap_week) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0)`
     ).bind(code, userId, name, await sha256(secret), stats.todaySeconds, stats.weekSeconds,
-      stats.streak, stats.level, stats.totalSeconds, now).run();
+      stats.streak, stats.level, stats.totalSeconds, now, JSON.stringify(stats.dailySeconds), stats.timeZone, dateInZone(now, stats.timeZone)).run();
     await gcGuild(env, code);
     return json({ secret, members: await liveMembers(env, code), serverTime: now });
   }
@@ -306,19 +335,25 @@ function fmtDur(totalSeconds) {
 async function liveMembers(env, code) {
   const cutoff = Date.now() - MEMBER_TTL_MS;
   const res = await env.DB.prepare(
-    `SELECT user_id, name, today_seconds, week_seconds, streak, level, total_seconds, last_seen
+    `SELECT user_id, name, today_seconds, week_seconds, streak, level, total_seconds, last_seen, daily_json, time_zone
      FROM members WHERE room = ? AND last_seen > ? ORDER BY week_seconds DESC`
   ).bind(code, cutoff).all();
-  return (res.results || []).map((r) => ({
+  return (res.results || []).map((r) => {
+    const todayDate = dateInZone(Date.now(), r.time_zone || 'UTC');
+    const buckets = parseDaily(r.daily_json).filter((d) => d.date >= shiftDate(todayDate, -6) && d.date <= todayDate);
+    return ({
     userId: r.user_id,
     name: r.name,
-    todaySeconds: r.today_seconds,
-    weekSeconds: r.week_seconds,
+    todaySeconds: buckets.find((d) => d.date === todayDate)?.seconds || 0,
+    weekSeconds: buckets.reduce((n, d) => n + d.seconds, 0),
+    todayDate,
+    timeZone: r.time_zone || 'UTC',
     streak: r.streak,
     level: r.level,
     totalSeconds: r.total_seconds,
     lastSeen: r.last_seen
-  }));
+    });
+  });
 }
 
 async function gcGuild(env, code) {
@@ -332,19 +367,44 @@ async function gcAll(env) {
 }
 
 async function readJson(request) {
-  try { return await request.json(); } catch { return {}; }
+  const len = Number(request.headers.get('content-length') || 0);
+  if (len > 65536) { const e=new Error('Request body too large'); e.status=400; throw e; }
+  let text;
+  if (request.body && request.body.getReader) {
+    const reader=request.body.getReader();const chunks=[];let size=0;
+    while(true){const {done,value}=await reader.read();if(done)break;size+=value.byteLength;if(size>65536){await reader.cancel();const e=new Error('Request body too large');e.status=400;throw e;}chunks.push(value);}
+    const bytes=new Uint8Array(size);let offset=0;for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.byteLength;}text=new TextDecoder().decode(bytes);
+  } else text=await request.text();
+  let value;
+  try { value = JSON.parse(text || '{}'); } catch { const e=new Error('Malformed JSON');e.status=400;throw e; }
+  if (!value || typeof value !== 'object' || Array.isArray(value)) { const e=new Error('Invalid JSON body');e.status=400;throw e; }
+  return value;
 }
 
 function clampStats(raw) {
   const s = raw && typeof raw === 'object' ? raw : {};
+  const daily = new Map();
+  for (const d of Array.isArray(s.dailySeconds) ? s.dailySeconds : []) {
+    if (!d || !isISODate(d.date)) continue;
+    daily.set(d.date, Math.max(daily.get(d.date) || 0, clampInt(d.seconds, 0, MAX_SECONDS_PER_DAY)));
+  }
   return {
     todaySeconds: clampInt(s.todaySeconds, 0, MAX_SECONDS_PER_DAY),
     weekSeconds: clampInt(s.weekSeconds, 0, MAX_SECONDS_PER_WEEK),
     streak: clampInt(s.streak, 0, 3650),
     level: clampInt(s.level, 1, 100_000),
-    totalSeconds: clampInt(s.totalSeconds, 0, 100 * 365 * MAX_SECONDS_PER_DAY)
+    totalSeconds: clampInt(s.totalSeconds, 0, 100 * 365 * MAX_SECONDS_PER_DAY),
+    todayDate: isISODate(s.todayDate) ? s.todayDate : new Date().toISOString().slice(0, 10),
+    timeZone: validZone(s.timeZone) ? s.timeZone : 'UTC',
+    dailySeconds: [...daily.entries()].sort(([a], [b]) => a.localeCompare(b)).slice(-7).map(([date, seconds]) => ({ date, seconds }))
   };
 }
+
+function isISODate(s) { if(typeof s!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(s))return false;const d=new Date(`${s}T00:00:00.000Z`);return Number.isFinite(d.getTime())&&d.toISOString().slice(0,10)===s; }
+function validZone(z) { try { new Intl.DateTimeFormat('en-US', { timeZone: z }).format(); return typeof z === 'string' && z.length <= 64; } catch { return false; } }
+function dateInZone(ms, zone) { return new Intl.DateTimeFormat('en-CA', { timeZone: validZone(zone) ? zone : 'UTC', year:'numeric', month:'2-digit', day:'2-digit' }).format(ms); }
+function shiftDate(date, offset) { const d = new Date(`${date}T12:00:00Z`); d.setUTCDate(d.getUTCDate()+offset); return d.toISOString().slice(0,10); }
+function parseDaily(raw) { try { const a=JSON.parse(raw||'[]'); return Array.isArray(a) ? a.filter(d=>d&&isISODate(d.date)).map(d=>({date:d.date,seconds:clampInt(d.seconds,0,MAX_SECONDS_PER_DAY)})) : []; } catch { return []; } }
 
 function clampInt(v, min, max) {
   const n = Number(v);

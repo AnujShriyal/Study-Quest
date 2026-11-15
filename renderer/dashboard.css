@@ -1351,7 +1351,7 @@ html[data-platform="darwin"] .titlebar { padding-left: 82px; }
 }
 .history-item {
   display: grid;
-  grid-template-columns: 6px minmax(0, 1fr) auto auto 18px;
+  grid-template-columns: 6px minmax(0, 1fr) auto auto auto 18px;
   align-items: center;
   gap: 8px;
   padding: 8px 4px;
@@ -1904,6 +1904,32 @@ html:not([data-theme="legacy"]) .empty-hint { padding: 28px 14px; }
   line-height: 1.55;
   max-width: 52ch;
 }
+.guild-mode-switch { display: flex; gap: 6px; }
+.guild-mode-switch button { border: 1px solid var(--line-strong); border-radius: 8px; padding: 8px 12px; color: var(--text); }
+.guild-mode-switch button[aria-pressed="true"] { background: var(--accent-fill-3); border-color: var(--accent-line-2); }
+.guild-create-panel, .guild-join-panel { min-height: 42px; }
+.history-tools { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 10px 0; color: var(--text); font-size: 12px; }
+.history-tools input, .history-tools select { max-width: 220px; }
+.h-edit { color: var(--text); font-size: 11px; }
+.history-item .h-edit { white-space: nowrap; padding: 2px 4px; border-radius: 4px; }
+.history-item .h-edit:hover { color: var(--accent); background: var(--accent-fill-2); }
+.settings-dialog { display: grid; gap: 10px; min-width: min(360px, 80vw); padding: 20px; color: var(--text); background: var(--surface); }
+.settings-dialog h2 { margin: 0 0 4px; }
+.settings-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.settings-dialog :focus-visible, dialog :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+html:not([data-theme="legacy"]) .settings-dialog input[type="number"],
+html:not([data-theme="legacy"]) .settings-dialog input[type="date"],
+html:not([data-theme="legacy"]) .history-tools input[type="search"] {
+  width: 100%; min-width: 0; height: 42px; padding: 0 12px; border-radius: 10px;
+  border: 1px solid var(--line); background: var(--input-bg); color: var(--text); font: inherit;
+}
+html:not([data-theme="legacy"]) .settings-dialog input[type="number"]:focus,
+html:not([data-theme="legacy"]) .settings-dialog input[type="date"]:focus,
+html:not([data-theme="legacy"]) .history-tools input[type="search"]:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+html:not([data-theme="legacy"]) .history-tools input[type="search"] { max-width: 240px; }
+html:not([data-theme="legacy"]) .settings-dialog input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.8); }
+dialog { color: var(--text); background: var(--surface); border: 1px solid var(--line-strong); border-radius: 14px; }
+dialog::backdrop { background: var(--dialog-backdrop); }
 .guild-field { display: flex; flex-direction: column; gap: 6px; }
 .guild-setup-actions {
   display: flex;

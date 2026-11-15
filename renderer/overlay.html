@@ -22,6 +22,8 @@
         <path d="M12 5.5v13M5.5 12h13"/>
       </symbol>
       <symbol id="i-stop" viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="10" rx="2.4" fill="currentColor"/></symbol>
+      <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5v14l11-7-11-7Z" fill="currentColor"/></symbol>
+      <symbol id="i-pause" viewBox="0 0 24 24"><path d="M6 5h4v14H6zm8 0h4v14h-4z" fill="currentColor"/></symbol>
       <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
         <path d="m5.5 12.5 4.2 4.2 8.8-9.4"/>
       </symbol>
@@ -49,6 +51,7 @@
 
     <div class="timer-block">
       <div class="timer-display" id="timerDisplay">00:00:00</div>
+      <label class="sr-only" for="subjectInput">Study subject</label>
       <input type="text" id="subjectInput" class="mini-subject" placeholder="Subject (optional)"
              maxlength="60" autocomplete="off" spellcheck="false" />
 
@@ -61,7 +64,7 @@
     </div>
 
     <div class="controls">
-      <button class="primary" id="btnAction"><span id="actionLabel">Start</span></button>
+      <button class="primary" id="btnAction" aria-label="Start session" title="Start session"><svg class="icon icon-sm action-icon" aria-hidden="true"><use href="#i-play"></use></svg><span id="actionLabel">Start</span></button>
       <button class="mini-stop" id="btnStop" disabled title="Stop and save" aria-label="Stop and save">
         <svg class="icon icon-sm" aria-hidden="true"><use href="#i-stop"></use></svg>
       </button>

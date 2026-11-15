@@ -121,6 +121,7 @@
           <svg class="icon icon-sm" aria-hidden="true"><use href="#i-expand"></use></svg>
           <span>Floating timer</span>
         </button>
+        <button class="btn-ghost" id="btnSettings" type="button">Settings</button>
         <button class="icon-btn" id="btnRespawnOverlay" title="Respawn floating timer to its default position"
                 aria-label="Respawn floating timer to its default position">
           <svg class="icon icon-sm" aria-hidden="true"><use href="#i-target"></use></svg>
@@ -154,6 +155,7 @@
 
     <div class="page-main">
       <header class="page-head">
+        <p id="recoveryBanner" class="guild-error recovery-banner" role="alert" hidden></p>
         <div class="greeting">
           <div class="eyebrow"><span class="live-orb" aria-hidden="true"></span><span id="dateLabel">Today</span></div>
           <h1 id="greetingText">Good evening</h1>
@@ -322,7 +324,7 @@
                 <div class="card-head">
                   <div class="card-title">
                     <span class="kicker">Momentum</span>
-                    <h2 id="weekTitle">This week</h2>
+                    <h2 id="weekTitle">Last 7 days</h2>
                   </div>
                   <div class="week-summary">
                     <span class="week-total mono" id="weekTotal">0m</span>
@@ -404,6 +406,7 @@
                 <form class="add-row" id="todoForm" autocomplete="off">
                   <div class="input-shell add-shell">
                     <svg class="icon icon-sm" aria-hidden="true"><use href="#i-plus"></use></svg>
+                    <label class="sr-only" for="todoInput">New mission</label>
                     <input type="text" id="todoInput" placeholder="Add a mission..." maxlength="200" />
                   </div>
                   <button class="add-btn" id="btnAddTodo" type="submit" title="Add mission" aria-label="Add mission">
@@ -437,9 +440,17 @@
                   </div>
                   <span class="meta-pill" id="historyMeta">0 sessions</span>
                 </div>
+                <div class="history-tools" aria-label="Filter session history">
+                  <label for="historySearch">Search sessions</label>
+                  <input id="historySearch" type="search" placeholder="Search subjects" />
+                  <label for="historySubject">Subject</label>
+                  <select id="historySubject"><option value="">All subjects</option></select>
+                  <span id="historyFilteredMeta" aria-live="polite"></span>
+                </div>
                 <div class="history-scroll" id="historyScroll">
                   <ul class="history-list" id="historyList"></ul>
                 </div>
+                <button class="btn-ghost" id="historyMore" type="button" hidden>Show more</button>
               </section>
             </section>
 
@@ -474,12 +485,18 @@
                     <input type="text" id="guildName" maxlength="24" autocomplete="off"
                            spellcheck="false" placeholder="What should the guild call you?" />
                   </div>
-                  <div class="guild-setup-actions">
+                  <div class="guild-mode-switch" role="group" aria-label="Guild action">
+                    <button type="button" id="guildModeCreate" aria-pressed="true">Create a guild</button>
+                    <button type="button" id="guildModeJoin" aria-pressed="false">Join a guild</button>
+                  </div>
+                  <div class="guild-create-panel" id="guildCreatePanel">
                     <button class="btn-primary guild-create" id="btnCreateGuild">Create a guild</button>
+                  </div>
+                  <div class="guild-join-panel" id="guildJoinPanel" hidden>
+                    <label class="field-label" for="guildCode">Guild code</label>
                     <div class="guild-join">
                       <input type="text" id="guildCode" class="guild-code" maxlength="7"
-                             autocomplete="off" spellcheck="false" placeholder="CODE"
-                             aria-label="Guild code" />
+                             autocomplete="off" spellcheck="false" placeholder="CODE" disabled />
                       <button class="btn-ghost" id="btnJoinGuild">Join</button>
                     </div>
                   </div>
@@ -491,6 +508,7 @@
                   <div class="guild-spectate">
                     <span class="kicker">Just watching?</span>
                     <div class="guild-spectate-row">
+                      <label class="sr-only" for="spectateCode">Guild code to view</label>
                       <input type="text" id="spectateCode" class="guild-code" maxlength="7"
                              autocomplete="off" spellcheck="false" placeholder="CODE"
                              aria-label="Guild code to view" />
@@ -502,6 +520,7 @@
                 </div>
 
                 <div class="guild-spectator" id="guildSpectator" hidden>
+                  <p class="guild-error" id="spectatorError" role="alert" hidden></p>
                   <p class="guild-spectator-note">
                     Viewing guild <b class="mono" id="spectatorCode">------</b> as a guest —
                     join it to appear on the board and sync your stats.
@@ -510,7 +529,7 @@
                     <div class="friends-board-head">
                       <div class="friends-sort" role="group" aria-label="Sort leaderboard">
                         <button type="button" id="specSortToday" class="is-active">Today</button>
-                        <button type="button" id="specSortWeek">This week</button>
+                        <button type="button" id="specSortWeek">Last 7 days</button>
                       </div>
                       <span class="friends-synced mono" id="spectatorSynced">—</span>
                     </div>
@@ -530,7 +549,7 @@
                   <div class="friends-board-head">
                     <div class="friends-sort" role="group" aria-label="Sort leaderboard">
                       <button type="button" id="sortToday" class="is-active">Today</button>
-                      <button type="button" id="sortWeek">This week</button>
+                      <button type="button" id="sortWeek">Last 7 days</button>
                     </div>
                     <span class="friends-synced mono" id="guildSynced">—</span>
                   </div>
@@ -554,6 +573,28 @@
 
   <div class="toast-host" id="toastHost" aria-live="polite"></div>
   <div class="confetti" id="confetti" aria-hidden="true"></div>
+  <dialog id="settingsDialog" aria-labelledby="settingsTitle">
+    <form method="dialog" class="settings-dialog">
+      <h2 id="settingsTitle">Settings</h2>
+      <label for="settingsDisplayName">Display name</label><input id="settingsDisplayName" type="text" maxlength="24" />
+      <label><input type="checkbox" id="pauseOnSuspend" /> Pause timer when the computer suspends</label>
+      <label><input type="checkbox" id="pauseOnLock" /> Pause timer when the screen locks</label>
+      <label for="overlayPreset">Floating timer size</label>
+      <select id="overlayPreset"><option value="micro">Micro</option><option value="mini">Mini</option><option value="compact">Compact</option><option value="cozy">Cozy</option><option value="roomy">Roomy</option></select>
+      <div class="settings-actions"><button class="btn-ghost" type="button" id="btnExportData">Export backup</button><button class="btn-ghost" type="button" id="btnImportData">Import backup</button><button class="btn-primary" type="button" id="btnCloseSettings">Done</button></div>
+      <p id="settingsError" role="alert" hidden></p>
+    </form>
+  </dialog>
+  <dialog id="sessionEditDialog" aria-labelledby="sessionEditTitle">
+    <form id="sessionEditForm" class="settings-dialog">
+      <h2 id="sessionEditTitle">Edit session</h2>
+      <label for="editSubject">Subject</label><input id="editSubject" type="text" maxlength="60" required />
+      <label for="editSeconds">Duration in seconds (maximum 7 days)</label><input id="editSeconds" type="number" min="1" max="604800" required />
+      <label for="editDate">Study date</label><input id="editDate" type="date" required />
+      <div class="settings-actions"><button class="btn-primary" type="submit">Save changes</button><button class="btn-ghost" type="button" id="btnCancelSessionEdit">Cancel</button></div>
+      <p id="sessionEditError" role="alert" hidden></p>
+    </form>
+  </dialog>
 
   <script src="dashboard.js"></script>
 </body>

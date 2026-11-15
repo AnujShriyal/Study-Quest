@@ -36,7 +36,9 @@
   --text-strong: #f7f6f2;
   --timer-text: #f5f4ef;
   --text-muted: #a3a29b;
-  --text-faint: #6e6d66;
+  --text-faint: #a3a29b;
+  --donut-empty: rgba(255, 255, 255, 0.055);
+  --dialog-backdrop: rgba(0, 0, 0, 0.58);
 
   /* Primary accent (amber) */
   --teal: #e2a44b;
@@ -276,7 +278,9 @@
   --text-strong: #14120e;
   --timer-text: #1d1b17;
   --text-muted: #6f6c63;
-  --text-faint: #a19d92;
+  --text-faint: #6f6c63;
+  --donut-empty: rgba(31, 29, 25, 0.08);
+  --dialog-backdrop: rgba(31, 29, 25, 0.42);
 
   --teal: #c98a2e;
   --accent: #c98a2e;
