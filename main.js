@@ -561,11 +561,13 @@ function createOverlayWindow() {
 
   overlayWindow = new BrowserWindow({
     width, height, x, y,
+    minWidth: 100,
+    minHeight: 80,
     frame: false,
     transparent: true,
     alwaysOnTop: true,
     skipTaskbar: true,
-    resizable: false,
+    resizable: false, // user resizing goes through the corner grip (transparent windows can't be edge-resized)
     show: false,
     icon: path.join(__dirname, 'assets', 'icon.ico'),
     webPreferences: {
@@ -866,6 +868,30 @@ ipcMain.handle('guild:setName', (_e, name) => sync.setName(name));
 
 ipcMain.handle('overlay:toggle', () => toggleOverlay());
 ipcMain.handle('overlay:hide', () => { if (overlayWindow) overlayWindow.hide(); });
+
+// Overlay corner-grip resizing (transparent frameless windows can't be
+// user-resized natively, so the renderer drives the size).
+let overlayPersistTimer = null;
+function persistOverlayBoundsSoon() {
+  clearTimeout(overlayPersistTimer);
+  overlayPersistTimer = setTimeout(() => {
+    if (overlayWindow && !overlayWindow.isDestroyed()) {
+      data.settings.overlayBounds = overlayWindow.getBounds();
+      saveData();
+    }
+  }, 250);
+}
+ipcMain.on('overlay:resizeTo', (_e, w, h) => {
+  if (!overlayWindow || overlayWindow.isDestroyed()) return;
+  // Windows clamps setSize on non-resizable windows to their initial size
+  // (grow-only) — flip resizability for the instant of the programmatic
+  // resize so shrinking works too.
+  overlayWindow.setResizable(true);
+  overlayWindow.setSize(Math.round(num(w, 100, 800, 300)), Math.round(num(h, 80, 900, 400)));
+  overlayWindow.setResizable(false);
+  persistOverlayBoundsSoon();
+});
+ipcMain.on('overlay:resizeEnd', () => persistOverlayBoundsSoon());
 ipcMain.handle('window:showDashboard', () => showDashboard());
 ipcMain.handle('window:minimize', () => {
   if (mainWindow && !mainWindow.isDestroyed()) mainWindow.minimize();

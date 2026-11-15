@@ -124,6 +124,7 @@ function renderTodos() {
     text.textContent = todos.length ? 'All missions cleared' : 'No missions yet';
     empty.appendChild(text);
     list.appendChild(empty);
+    overlayTier.autoFitHeight();
     return;
   }
 
@@ -149,6 +150,7 @@ function renderTodos() {
     li.append(chk, txt);
     list.appendChild(li);
   }
+  overlayTier.autoFitHeight();
 }
 
 /* ---------- Events ---------- */
@@ -199,6 +201,76 @@ $('miniTodoForm').addEventListener('submit', async (e) => {
 
 $('btnDash').addEventListener('click', () => window.api.showDashboard());
 $('btnClose').addEventListener('click', () => window.api.hideOverlay());
+
+/* ---------- Corner resize grip ---------- */
+const OVERLAY_MIN_W = 100, OVERLAY_MIN_H = 80, OVERLAY_MAX_W = 800, OVERLAY_MAX_H = 900;
+(() => {
+  const grip = $('resizeGrip');
+  const card = document.querySelector('.overlay-card');
+  if (!grip || !card) return;
+
+  let dragging = false;
+  let startX = 0, startY = 0, startW = 0, startH = 0;
+
+  grip.addEventListener('mousedown', (e) => {
+    dragging = true;
+    startX = e.screenX;
+    startY = e.screenY;
+    const rect = card.getBoundingClientRect();
+    startW = rect.width;
+    startH = rect.height;
+    e.preventDefault();
+  });
+  window.addEventListener('mousemove', (e) => {
+    if (!dragging) return;
+    const w = Math.min(OVERLAY_MAX_W, Math.max(OVERLAY_MIN_W, Math.round(startW + (e.screenX - startX))));
+    const h = Math.min(OVERLAY_MAX_H, Math.max(OVERLAY_MIN_H, Math.round(startH + (e.screenY - startY))));
+    window.api.resizeOverlayTo(w, h);
+  });
+  window.addEventListener('mouseup', () => {
+    if (!dragging) return;
+    dragging = false;
+    window.api.resizeOverlayEnd();
+    overlayTier.autoFitHeight();
+  });
+})();
+
+/* ---------- Size tiers + auto-fit height at the small tiers ---------- */
+const overlayTier = {
+  card: document.querySelector('.overlay-card'),
+  tier: 'cozy',
+  tierOf(w, h) {
+    return (w < 150 || h < 190) ? 'micro'
+      : (w < 200 || h < 240) ? 'mini'
+      : (w < 272 || h < 348) ? 'compact'
+      : (w >= 420 || h >= 540) ? 'roomy' : 'cozy';
+  },
+  apply(width, height) {
+    this.tier = this.tierOf(width, height);
+    this.card.dataset.size = this.tier;
+  },
+  isAutoFit() { return this.tier === 'mini' || this.tier === 'micro'; },
+  // At mini/micro the window height hugs the content exactly — no dead space.
+  autoFitHeight() {
+    if (!this.isAutoFit() || !this.card) return;
+    const drag = document.querySelector('.drag-bar').offsetHeight;
+    const block = document.querySelector('.timer-block').offsetHeight;
+    const controls = document.querySelector('.controls').offsetHeight;
+    const todo = document.querySelector('.mini-todo');
+    const todoH = todo && !todo.hidden ? todo.offsetHeight : 0;
+    const width = Math.max(OVERLAY_MIN_W, Math.round(this.card.getBoundingClientRect().width));
+    const height = Math.max(OVERLAY_MIN_H, drag + block + controls + todoH + 2);
+    window.api.resizeOverlayTo(width, height);
+  }
+};
+if (overlayTier.card) {
+  overlayTier.apply(overlayTier.card.clientWidth, overlayTier.card.clientHeight);
+  new ResizeObserver((entries) => {
+    const { width, height } = entries[0].contentRect;
+    overlayTier.apply(width, height);
+    overlayTier.autoFitHeight();
+  }).observe(overlayTier.card);
+}
 
 /* ---------- Live updates ---------- */
 window.api.onTimerTick((payload) => {

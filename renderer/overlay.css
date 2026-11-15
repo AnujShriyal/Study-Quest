@@ -339,3 +339,117 @@ html, body {
   color: var(--teal);
 }
 .mini-add-row button:hover { background: var(--accent-fill-5); }
+
+/* ---------- Corner resize grip ---------- */
+.resize-grip {
+  position: absolute;
+  right: 1px;
+  bottom: 1px;
+  width: 18px;
+  height: 18px;
+  z-index: 30;
+  cursor: nwse-resize;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.overlay-card:hover .resize-grip { opacity: 0.4; }
+.resize-grip:hover { opacity: 1 !important; }
+.resize-grip::before {
+  content: '';
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid var(--text-faint);
+  border-bottom: 2px solid var(--text-faint);
+  border-bottom-right-radius: 3px;
+}
+
+/* ---------- Size tiers ----------
+   micro < 150×190 · mini < 200×240 · compact < 272×348 · roomy ≥ 420×540
+   Tiers are cumulative: mini inherits compact, micro inherits both.      */
+/* compact: the subject field goes away — Start/End take its place */
+.overlay-card[data-size="compact"] .drag-bar,
+.overlay-card[data-size="mini"] .drag-bar,
+.overlay-card[data-size="micro"] .drag-bar { height: 28px; padding: 0 6px 0 9px; }
+.overlay-card[data-size="compact"] .timer-block,
+.overlay-card[data-size="mini"] .timer-block,
+.overlay-card[data-size="micro"] .timer-block { padding: 8px 10px 0; }
+.overlay-card[data-size="compact"] .timer-display,
+.overlay-card[data-size="mini"] .timer-display,
+.overlay-card[data-size="micro"] .timer-display { font-size: 24px; letter-spacing: 0.3px; }
+.overlay-card[data-size="compact"] .mini-subject,
+.overlay-card[data-size="mini"] .mini-subject,
+.overlay-card[data-size="micro"] .mini-subject { display: none; }
+.overlay-card[data-size="compact"] .mini-goal,
+.overlay-card[data-size="mini"] .mini-goal,
+.overlay-card[data-size="micro"] .mini-goal { margin-top: 8px; }
+.overlay-card[data-size="compact"] .controls,
+.overlay-card[data-size="mini"] .controls,
+.overlay-card[data-size="micro"] .controls { padding: 8px 10px; }
+.overlay-card[data-size="compact"] #btnAction,
+.overlay-card[data-size="mini"] #btnAction,
+.overlay-card[data-size="micro"] #btnAction { height: 36px; padding-left: 28px; font-size: 11px; }
+.overlay-card[data-size="compact"] .mini-stop,
+.overlay-card[data-size="mini"] .mini-stop,
+.overlay-card[data-size="micro"] .mini-stop { width: 36px; height: 36px; }
+.overlay-card[data-size="compact"] .mini-todo,
+.overlay-card[data-size="mini"] .mini-todo,
+.overlay-card[data-size="micro"] .mini-todo { padding: 6px 10px 7px; }
+.overlay-card[data-size="compact"] .mini-todo li,
+.overlay-card[data-size="mini"] .mini-todo li,
+.overlay-card[data-size="micro"] .mini-todo li { font-size: 9.5px; padding: 2px 2px; }
+
+/* mini: the quick-add mission row goes away too */
+.overlay-card[data-size="mini"] .mini-add-row,
+.overlay-card[data-size="micro"] .mini-add-row { display: none; }
+.overlay-card[data-size="mini"] .timer-display,
+.overlay-card[data-size="micro"] .timer-display { font-size: 20px; }
+/* and the missions section stops stretching — the window hugs it instead */
+.overlay-card[data-size="mini"] .mini-todo { flex: none; }
+/* and the empty state collapses to its natural height (no 150px void) */
+.overlay-card[data-size="mini"] .mini-empty,
+.overlay-card[data-size="micro"] .mini-empty { height: auto !important; min-height: 0 !important; }
+
+/* micro: timer + Start/End only — missions, goal and branding all hidden */
+.overlay-card[data-size="micro"] .mini-todo,
+.overlay-card[data-size="micro"] .mini-goal,
+.overlay-card[data-size="micro"] .ov-brand,
+.overlay-card[data-size="micro"] .ov-state { display: none; }
+.overlay-card[data-size="micro"] .drag-bar { height: 24px; gap: 4px; }
+.overlay-card[data-size="micro"] .mini-btn { width: 21px; height: 21px; }
+.overlay-card[data-size="micro"] .mini-btn .icon { width: 10px; height: 10px; }
+.overlay-card[data-size="micro"] .timer-display { font-size: 15px; }
+.overlay-card[data-size="micro"] .timer-block { padding: 3px 6px 0; }
+.overlay-card[data-size="micro"] .controls { padding: 4px 6px; }
+.overlay-card[data-size="micro"] #btnAction { height: 28px; padding-left: 22px; font-size: 10px; border-radius: 8px; }
+.overlay-card[data-size="micro"] .mini-stop { width: 28px; height: 28px; border-radius: 8px; }
+
+/* mini/micro: the window auto-hugs its content — the list never flexes */
+.overlay-card[data-size="mini"] .mini-todo ul,
+.overlay-card[data-size="micro"] .mini-todo ul { flex: none; max-height: 150px; }
+.overlay-card[data-size="micro"] .controls { padding-bottom: 16px; }
+
+/* compact/cozy/roomy: center the empty state instead of leaving a void */
+.mini-todo ul:has(> li.mini-empty) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.overlay-card[data-size="roomy"] .drag-bar { height: 40px; padding: 0 9px 0 14px; }
+.overlay-card[data-size="roomy"] .ov-brand { font-size: 10.5px; }
+.overlay-card[data-size="roomy"] .timer-block { padding: 16px 16px 4px; }
+.overlay-card[data-size="roomy"] .timer-display { font-size: 46px; }
+.overlay-card[data-size="roomy"] .mini-subject { height: 32px; margin-top: 10px; font-size: 12px; }
+.overlay-card[data-size="roomy"] .mini-goal { margin-top: 12px; }
+.overlay-card[data-size="roomy"] .mini-goal-track { height: 5px; }
+.overlay-card[data-size="roomy"] .controls { padding: 10px 16px; }
+.overlay-card[data-size="roomy"] #btnAction { height: 44px; font-size: 13px; border-radius: 12px; }
+.overlay-card[data-size="roomy"] .mini-stop { width: 44px; height: 44px; border-radius: 12px; }
+.overlay-card[data-size="roomy"] .mini-todo { padding: 10px 16px 12px; }
+.overlay-card[data-size="roomy"] .mini-todo li { font-size: 12px; padding: 4px 2px; }
+.overlay-card[data-size="roomy"] .mini-todo .mini-check { width: 16px; height: 16px; }
+.overlay-card[data-size="roomy"] .mini-add-row input { height: 31px; font-size: 11px; }
+.overlay-card[data-size="roomy"] .mini-add-row button { width: 31px; height: 31px; }
