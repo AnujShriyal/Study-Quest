@@ -278,7 +278,11 @@ const overlayTier = {
     const todoH = todo && !todo.hidden ? todo.offsetHeight : 0;
     const width = Math.max(OVERLAY_MIN_W, Math.round(this.card.getBoundingClientRect().width));
     const height = Math.max(OVERLAY_MIN_H, drag + block + controls + todoH + 2);
-    if (Math.abs(height - (this.lastAutoHeight || 0)) > 2) { this.lastAutoHeight = height; window.api.resizeOverlayTo(width, height); }
+    // Compare against the window's real height, not a remembered value —
+    // a manual drag can move the window far from the last auto-fit.
+    const current = Math.round(this.card.getBoundingClientRect().height);
+    if (Math.abs(height - current) <= 2) return;
+    window.api.resizeOverlayTo(width, height);
   }
 };
 if (overlayTier.card) {

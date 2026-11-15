@@ -975,6 +975,12 @@ select {
 }
 select:hover { color: var(--text); border-color: var(--line-strong); }
 select:focus { border-color: var(--input-border-focus); }
+/* Native popup list: without an opaque option background the dark-theme
+   text renders white-on-white inside the OS dropdown. */
+select option {
+  background-color: var(--surface-solid);
+  color: var(--text);
+}
 [data-theme="legacy"] select {
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' fill='none' stroke='%239aa1c8' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/></svg>");
 }
