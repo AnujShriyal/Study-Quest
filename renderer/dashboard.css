@@ -1919,7 +1919,9 @@ html:not([data-theme="legacy"]) .empty-hint { padding: 28px 14px; }
   min-width: 210px;
 }
 .guild-join .btn-ghost { height: 42px; padding: 0 16px; }
-.guild-code {
+/* input[type="text"] in theme.css has width:100% at higher specificity —
+   re-assert the compact code field or the Join button gets pushed off-card */
+input.guild-code {
   width: 128px;
   flex: none;
   text-align: center;
