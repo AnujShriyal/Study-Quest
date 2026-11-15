@@ -18,6 +18,7 @@
   "build": {
     "appId": "com.studyquest.app",
     "productName": "Study Quest",
+    "artifactName": "Study-Quest-Setup.${ext}",
     "directories": {
       "output": "dist"
     },
