@@ -31,6 +31,7 @@ contextBridge.exposeInMainWorld('api', {
 
   toggleOverlay: () => ipcRenderer.invoke('overlay:toggle'),
   hideOverlay: () => ipcRenderer.invoke('overlay:hide'),
+  respawnOverlay: () => ipcRenderer.invoke('overlay:respawn'),
   resizeOverlayTo: (w, h) => ipcRenderer.send('overlay:resizeTo', w, h),
   resizeOverlayEnd: () => ipcRenderer.send('overlay:resizeEnd'),
   showDashboard: () => ipcRenderer.invoke('window:showDashboard'),

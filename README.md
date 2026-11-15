@@ -119,7 +119,13 @@ leaderboard syncs aggregate stats through a tiny server you deploy once.
 
 - Compact, frameless, always-on-top timer.
 - Includes the timer, subject field, daily-goal progress, and active missions.
-- Drag it anywhere; position and visibility are remembered between launches.
+- **Resizable** from the corner grip, with a UI that adapts: the subject field,
+  quick-add row, and missions progressively hide as it gets smaller — down to
+  a 100×120 timer-and-buttons widget.
+- Drag it anywhere; position, size, and visibility are remembered between
+  launches. Dragged it off-screen? The **respawn** button (crosshair icon in
+  the title bar) puts it back at the default spot, and mostly off-screen
+  positions auto-respawn on launch.
 - Toggle it from the dashboard or the tray menu.
 
 ![Floating overlay](docs/screenshots/overlay.png)
