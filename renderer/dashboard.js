@@ -23,7 +23,9 @@ const state = {
     spectatorSyncedAt: 0,
     spectatorError: null,
     specSort: 'today'
-  }
+  },
+  recoveryError: null,
+  restoreLimitedAnnounced: false
 };
 
 /* Dark is the default theme — apply it before first paint so the premium
@@ -135,7 +137,13 @@ function liveSeconds() {
 
 function liveTodaySeconds() {
   if (!state.stats) return liveSeconds();
-  return state.stats.todaySeconds + liveSeconds();
+  return Number.isFinite(state.timer?.liveTodaySeconds) ? state.timer.liveTodaySeconds : (state.stats?.todaySeconds || 0);
+}
+
+function activeSecondsForDate(date) {
+  const rows = state.timer?.activeSecondsByDate;
+  if (Array.isArray(rows)) return rows.find((row) => row.date === date)?.seconds || 0;
+  return date === (state.stats?.todayDate || localDateKey()) ? (state.timer?.activeTodaySeconds ?? liveSeconds()) : 0;
 }
 
 function subjectColor(subject) {
@@ -372,7 +380,7 @@ function renderStats() {
       : `No active streak. Longest: ${plural(streak.longest, 'day')}.`;
 
   $('todayPill').textContent = fmtMinutesShort(liveTodaySeconds());
-  $('totalPill').textContent = fmtMinutesShort(stats.totalSeconds);
+  $('totalPill').textContent = fmtMinutesShort(state.timer?.liveTotalSeconds ?? stats.totalSeconds);
 
   renderGreetingSub();
   renderGoal();
@@ -445,12 +453,9 @@ function renderWeek() {
   chart.innerHTML = '';
   labels.innerHTML = '';
 
-  const days = stats.last7.map((d) => ({
-    ...d,
-    seconds: d.isToday ? d.seconds + liveSeconds() : d.seconds
-  }));
+  const days = stats.last7.map((d) => ({ ...d, seconds: d.seconds + activeSecondsForDate(d.date) }));
   const max = Math.max(1, ...days.map((d) => d.seconds));
-  const total = days.reduce((sum, d) => sum + d.seconds, 0);
+  const total = state.timer?.liveWeekSeconds ?? days.reduce((sum, d) => sum + d.seconds, 0);
 
   for (const day of days) {
     const col = document.createElement('div');
@@ -522,10 +527,13 @@ function renderFocusMix() {
   const legend = $('mixLegend');
   legend.innerHTML = '';
 
-  const items = stats.weekSubjects;
+  const fullSubjects = stats.weekSubjects || [];
+  const items = fullSubjects.slice(0, 6);
+  const otherSeconds = fullSubjects.slice(6).reduce((sum, item) => sum + item.seconds, 0);
+  if (otherSeconds > 0) items.push({ subject: 'Other', seconds: otherSeconds });
   if (!items.length) {
     donut.classList.add('empty');
-    donut.style.background = 'rgba(255, 255, 255, 0.055)';
+    donut.style.background = 'var(--donut-empty)';
     count.textContent = '0';
     $('mixTotal').textContent = 'last 7 days';
     const hint = document.createElement('div');
@@ -546,7 +554,7 @@ function renderFocusMix() {
   });
   donut.style.background = `conic-gradient(from -90deg, ${stops.join(', ')})`;
 
-  count.textContent = String(items.length);
+  count.textContent = String(stats.subjectCount ?? fullSubjects.length);
   $('mixTotal').textContent = `${fmtMinutesShort(total)} total`;
 
   for (const item of items) {
@@ -599,29 +607,31 @@ function renderActivity() {
   months.innerHTML = '';
 
   if (!days.length) {
-    state.activity = { baseTotal: 0, baseActive: 0, todayBase: 0, todayCell: null };
+    state.activity = { baseTotal: 0, baseActive: 0, todayBase: 0, todayCell: null, cells: new Map(), days: [] };
     setActivitySummary(0, 0);
     return;
   }
 
   const today = localDateKey();
-  const live = liveSeconds();
+  const live = days.reduce((sum, day) => sum + activeSecondsForDate(day.date), 0);
   let baseTotal = 0;
   let baseActive = 0;
   let todayBase = 0;
   let todayCell = null;
+  const cells = new Map();
 
   for (const day of days) {
     baseTotal += day.seconds;
     if (day.seconds > 0) baseActive += 1;
 
-    const isToday = day.date === today;
+    const isToday = day.date === (stats.todayDate || today);
     if (isToday) todayBase = day.seconds;
-    const seconds = day.seconds + (isToday ? live : 0);
+    const seconds = day.seconds + activeSecondsForDate(day.date);
 
     const cell = document.createElement('div');
     cell.setAttribute('role', 'gridcell');
     setActivityCell(cell, day, seconds, isToday);
+    cells.set(day.date, cell);
     grid.appendChild(cell);
     if (isToday) todayCell = cell;
   }
@@ -641,23 +651,29 @@ function renderActivity() {
     }
   }
 
-  state.activity = { baseTotal, baseActive, todayBase, todayCell };
+  state.activity = { baseTotal, baseActive, todayBase, todayCell, cells, days };
+  const liveActiveDays = days.reduce((n, day) => n + (day.seconds + activeSecondsForDate(day.date) > 0 ? 1 : 0), 0);
   setActivitySummary(
     baseTotal + live,
-    baseActive + (todayBase === 0 && live > 0 ? 1 : 0)
+    liveActiveDays
   );
 }
 
 function updateActivityLive() {
   const activity = state.activity;
-  if (!activity || !activity.todayCell) return;
-
-  const live = liveSeconds();
-  const seconds = activity.todayBase + live;
-  setActivityCell(activity.todayCell, { date: localDateKey(), future: false }, seconds, true);
+  if (!activity || !activity.cells) return;
+  let liveTotal = 0;
+  let activeDays = 0;
+  for (const day of activity.days || []) {
+    const active = activeSecondsForDate(day.date);
+    liveTotal += active;
+    const cell = activity.cells.get(day.date);
+    if (cell) setActivityCell(cell, day, day.seconds + active, day.date === (state.stats?.todayDate || localDateKey()));
+    if (day.seconds + active > 0) activeDays += 1;
+  }
   setActivitySummary(
-    activity.baseTotal + live,
-    activity.baseActive + (activity.todayBase === 0 && live > 0 ? 1 : 0)
+    activity.baseTotal + liveTotal,
+    activeDays
   );
 }
 
@@ -675,7 +691,9 @@ function todoItem(t) {
   chk.innerHTML = '<svg class="icon" aria-hidden="true"><use href="#i-check"></use></svg>';
   chk.addEventListener('click', async () => {
     chk.disabled = true;
-    await window.api.toggleTodo(t.id);
+    try { const result = await window.api.toggleTodo(t.id); if (result?.ok === false) throw new Error(result.error || 'Could not update mission'); }
+    catch (error) { toast(error.message || String(error), { tone: 'danger' }); }
+    finally { chk.disabled = false; }
   });
 
   const txt = document.createElement('span');
@@ -689,12 +707,16 @@ function todoItem(t) {
   del.setAttribute('aria-label', `Delete mission: ${t.text}`);
   del.innerHTML = '<svg class="icon" aria-hidden="true"><use href="#i-trash"></use></svg>';
   del.addEventListener('click', async () => {
-    const res = await window.api.deleteTodo(t.id);
+    del.disabled = true;
+    let res;
+    try { res = await window.api.deleteTodo(t.id); if (res?.ok === false) throw new Error(res.error || 'Could not delete mission'); }
+    catch (error) { toast(error.message || String(error), { tone: 'danger' }); }
+    finally { del.disabled = false; }
     if (res && res.deleted) {
       toast('Mission deleted', {
         actionLabel: 'Undo',
         timeout: 6000,
-        onAction: () => window.api.restoreTodo(res.deleted)
+        onAction: async () => { try { const undo = await window.api.restoreTodo(res.deleted); if (undo?.ok === false) throw new Error(undo.error || 'Could not restore mission'); } catch (error) { toast(error.message || String(error), { tone: 'danger' }); } }
       });
     }
   });
@@ -791,25 +813,42 @@ function renderSubjectList() {
 }
 
 /* ---------- History ---------- */
+let historyLimit = 100;
 function renderHistory() {
   if (!state.data) return;
   const list = $('historyList');
-  const sessions = [...state.data.sessions]
-    .sort((a, b) => b.startedAt - a.startedAt)
-    .slice(0, 200);
+  const query = ($('historySearch')?.value || '').trim().toLowerCase();
+  const subject = $('historySubject')?.value || '';
+  const allSessions = [...state.data.sessions].sort((a, b) => b.startedAt - a.startedAt);
+  const sessions = allSessions.filter((s) => (!query || s.subject.toLowerCase().includes(query)) && (!subject || s.subject === subject));
+  const visibleSessions = sessions.slice(0, historyLimit);
 
   $('historyMeta').textContent = plural(state.data.sessions.length, 'session');
   setTabBadge('historyTabBadge', state.data.sessions.length);
+  const selector = $('historySubject');
+  if (selector) {
+    const current = selector.value;
+    const names = [...new Set(state.data.sessions.map((s) => s.subject))].sort((a, b) => a.localeCompare(b));
+    if (selector.options.length !== names.length + 1 || names.some((n, i) => selector.options[i + 1]?.value !== n)) {
+      selector.innerHTML = '<option value="">All subjects</option>';
+      for (const name of names) { const option = document.createElement('option'); option.value = name; option.textContent = name; selector.appendChild(option); }
+    }
+    selector.value = names.includes(current) ? current : '';
+  }
+  $('historyFilteredMeta').textContent = `${sessions.length} matching of ${allSessions.length} sessions`;
+  $('historyMore').hidden = visibleSessions.length >= sessions.length;
 
   list.innerHTML = '';
-  if (!sessions.length) {
+  if (!visibleSessions.length) {
     list.appendChild(emptyState('i-history', 'No sessions logged yet. Start a timer to begin your quest.'));
     return;
   }
 
   const groups = new Map();
-  for (const s of sessions) {
-    const key = localDateKey(new Date(s.startedAt));
+  const allDayTotals = new Map();
+  for (const s of sessions) { const key = s.date || localDateKey(new Date(s.startedAt)); allDayTotals.set(key, (allDayTotals.get(key) || 0) + s.seconds); }
+  for (const s of visibleSessions) {
+    const key = s.date || localDateKey(new Date(s.startedAt));
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(s);
   }
@@ -821,7 +860,7 @@ function renderHistory() {
     label.textContent = dayLabel(key);
     const total = document.createElement('span');
     total.className = 'date-total';
-    total.textContent = fmtMinutesShort(items.reduce((sum, s) => sum + s.seconds, 0));
+    total.textContent = fmtMinutesShort(allDayTotals.get(key) || 0);
     head.append(label, total);
     list.appendChild(head);
 
@@ -848,6 +887,11 @@ function renderHistory() {
       dur.className = 'h-dur';
       dur.textContent = fmtMinutesShort(s.seconds);
 
+      const edit = document.createElement('button');
+      edit.type = 'button'; edit.className = 'h-edit'; edit.textContent = 'Edit';
+      edit.setAttribute('aria-label', `Edit session: ${s.subject}`);
+      edit.addEventListener('click', () => openSessionEditor(s));
+
       const del = document.createElement('button');
       del.type = 'button';
       del.className = 'h-del';
@@ -855,21 +899,49 @@ function renderHistory() {
       del.setAttribute('aria-label', `Delete session: ${s.subject}, ${fmtMinutesShort(s.seconds)}`);
       del.innerHTML = '<svg class="icon" aria-hidden="true"><use href="#i-trash"></use></svg>';
       del.addEventListener('click', async () => {
-        const res = await window.api.deleteSession(s.id);
+        del.disabled = true;
+        let res;
+        try { res = await window.api.deleteSession(s.id); if (res?.ok === false) throw new Error(res.error || 'Could not delete session'); }
+        catch (error) { toast(error.message || String(error), { tone: 'danger' }); }
+        finally { del.disabled = false; }
         if (res && res.deleted) {
           toast('Session deleted', {
             actionLabel: 'Undo',
             timeout: 6000,
-            onAction: () => window.api.restoreSession(res.deleted)
+            onAction: async () => { try { const undo = await window.api.restoreSession(res.deleted); if (undo?.ok === false) throw new Error(undo.error || 'Could not restore session'); } catch (error) { toast(error.message || String(error), { tone: 'danger' }); } }
           });
         }
       });
 
-      li.append(dot, subj, time, dur, del);
+      li.append(dot, subj, time, dur, edit, del);
       list.appendChild(li);
     }
   }
 }
+$('btnCancelSessionEdit').addEventListener('click', () => $('sessionEditDialog').close());
+let editingSessionId = null;
+function openSessionEditor(session) {
+  editingSessionId = session.id;
+  $('editSubject').value = session.subject;
+  $('editSeconds').value = session.seconds;
+  $('editDate').value = session.date || localDateKey(new Date(session.startedAt));
+  $('sessionEditError').hidden = true;
+  $('sessionEditDialog').showModal(); $('editSubject').focus();
+}
+$('sessionEditForm').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const submit = $('sessionEditForm').querySelector('[type="submit"]'); submit.disabled = true;
+  try {
+    const changes = { subject: $('editSubject').value.trim(), seconds: Number($('editSeconds').value), date: $('editDate').value };
+    const result = await window.api.updateSession(editingSessionId, changes);
+    if (result?.ok === false) throw new Error(result.error || 'Could not update session');
+    $('sessionEditDialog').close(); renderHistory();
+  } catch (error) { $('sessionEditError').textContent = error.message || String(error); $('sessionEditError').hidden = false; }
+  finally { submit.disabled = false; }
+});
+$('historySearch').addEventListener('input', () => { historyLimit = 100; renderHistory(); });
+$('historySubject').addEventListener('change', () => { historyLimit = 100; renderHistory(); });
+$('historyMore').addEventListener('click', () => { historyLimit += 100; renderHistory(); });
 
 /* ---------- Timer ---------- */
 function renderTimer() {
@@ -894,6 +966,7 @@ function renderTimer() {
   const startBtn = $('btnStart');
   const startLabel = running ? 'Pause' : elapsed > 0 ? 'Resume' : 'Start session';
   startBtn.classList.toggle('is-running', running);
+  startBtn.disabled = !!state.recoveryError;
   $('startLabel').textContent = startLabel;
   startBtn.title = running ? 'Pause session' : elapsed > 0 ? 'Resume session' : 'Start session';
   $('btnStop').disabled = elapsed === 0;
@@ -1012,19 +1085,21 @@ function initWorkspaceTabs() {
 
 /* ---------- Events ---------- */
 $('btnStart').addEventListener('click', async () => {
-  if (state.timer.running) {
-    state.timer = await window.api.pauseTimer();
-  } else {
-    const subject = $('subjectInput').value.trim();
-    state.timer = await window.api.startTimer(subject);
-  }
-  renderTimer();
-  renderLive();
-  renderSubjectList();
+  const button = $('btnStart'); button.disabled = true;
+  try {
+    state.timer = state.timer.running
+      ? await window.api.pauseTimer()
+      : await window.api.startTimer($('subjectInput').value.trim());
+    renderTimer(); renderLive(); renderSubjectList();
+  } catch (error) { toast(`Could not update timer: ${error.message || error}`, { tone: 'danger' }); }
+  finally { button.disabled = false; }
 });
 
 $('btnStop').addEventListener('click', async () => {
-  const result = await window.api.stopTimer();
+  let result;
+  try { result = await window.api.stopTimer(); }
+  catch (error) { toast(`Could not stop session: ${error.message || error}`, { tone: 'danger' }); return; }
+  if (result?.error) { toast(`Session was not saved: ${result.error}`, { tone: 'danger' }); return; }
   state.timer = { running: false, subject: '', elapsedSeconds: 0, canSave: false };
   renderTimer();
   renderLive();
@@ -1047,9 +1122,10 @@ $('todoForm').addEventListener('submit', async (e) => {
   const input = $('todoInput');
   const text = input.value.trim();
   if (!text) return;
-  input.value = '';
-  await window.api.addTodo(text);
-  input.focus();
+  const submit = $('todoForm').querySelector('[type="submit"]'); submit.disabled = true;
+  try { const result = await window.api.addTodo(text); if (result?.ok === false) throw new Error(result.error || 'Could not add mission'); input.value = ''; input.focus(); }
+  catch (error) { toast(error.message || String(error), { tone: 'danger' }); }
+  finally { submit.disabled = false; }
 });
 
 $('completedToggle').addEventListener('click', () => {
@@ -1057,19 +1133,26 @@ $('completedToggle').addEventListener('click', () => {
   renderTodos();
 });
 
-$('btnClearDone').addEventListener('click', () => window.api.clearDoneTodos());
+$('btnClearDone').addEventListener('click', async () => {
+  const button = $('btnClearDone'); button.disabled = true;
+  try { const result = await window.api.clearDoneTodos(); if (result?.ok === false) throw new Error(result.error || 'Could not clear missions'); }
+  catch (error) { toast(error.message || String(error), { tone: 'danger' }); }
+  finally { button.disabled = false; }
+});
 
 $('goalSelect').addEventListener('change', async (e) => {
   const value = Number(e.target.value);
   state.pendingGoal = value;
   renderGoal();
   try {
-    await window.api.setGoal(value);
-  } catch {
+    const result = await window.api.setGoal(value);
+    if (result?.ok === false) throw new Error(result.error || 'Could not save goal');
+  } catch (error) {
     if (state.pendingGoal === value) {
       state.pendingGoal = null;
       renderGoal();
     }
+    toast(error.message || 'Could not save goal', { tone: 'danger' });
   }
 });
 
@@ -1188,9 +1271,12 @@ function closeThemeMenu(focusTrigger = false) {
   if (focusTrigger) trigger?.focus({ preventScroll: true });
 }
 
-function chooseTheme(value) {
+async function chooseTheme(value) {
   closeThemeMenu(true);
-  window.api.setTheme(value);
+  try {
+    const result = await window.api.setTheme(value);
+    if (result?.ok === false) throw new Error(result.error || 'Could not save theme');
+  } catch (error) { toast(error.message || String(error), { tone: 'danger' }); }
 }
 
 $('themeTrigger').addEventListener('click', () => {
@@ -1231,11 +1317,17 @@ $('themeMenu').addEventListener('keydown', (event) => {
   options[next].focus({ preventScroll: true });
 });
 
-$('btnOverlay').addEventListener('click', () => window.api.toggleOverlay());
+$('btnOverlay').addEventListener('click', async () => {
+  try { const result = await window.api.toggleOverlay(); if (result?.ok === false) throw new Error(result.error || 'Could not toggle floating timer'); }
+  catch (error) { toast(error.message || String(error), { tone: 'danger' }); }
+});
 
 $('btnRespawnOverlay').addEventListener('click', async () => {
-  const res = await window.api.respawnOverlay().catch(() => ({ ok: false }));
+  let res;
+  try { res = await window.api.respawnOverlay(); }
+  catch (error) { res = { ok: false, error: String(error) }; }
   if (res && res.ok) toast('Floating timer respawned to its default spot', { icon: 'i-target' });
+  else toast(res?.error || 'Could not respawn floating timer', { tone: 'danger' });
 });
 
 /* ---------- Guild leaderboard ---------- */
@@ -1262,15 +1354,14 @@ function applyGuildState(g) {
 }
 
 function showGuildError(msg) {
-  const el = $('guildError');
+  const el = state.guild.spectating ? $('spectatorError') : $('guildError');
   if (!el) return;
   el.textContent = msg;
   el.hidden = false;
 }
 
 function hideGuildError() {
-  const el = $('guildError');
-  if (el) el.hidden = true;
+  for (const id of ['guildError', 'spectatorError']) { const el = $(id); if (el) el.hidden = true; }
 }
 
 function updateSyncedLabel(elId, error, syncedAt) {
@@ -1410,18 +1501,19 @@ async function guildAction(mode) {
     $('guildName').focus();
     return;
   }
+  if (mode === 'join' && !$('guildCode').value.trim()) {
+    showGuildError('Enter a guild code to join'); $('guildCode').focus(); return;
+  }
   const baseUrl = state.guild.defaultSyncUrlSet ? undefined : $('guildServer').value.trim();
-  const btn = mode === 'create' ? $('btnCreateGuild') : $('btnJoinGuild');
   hideGuildError();
-  btn.disabled = true;
 
   const api = mode === 'create' ? window.api.createGuild : window.api.joinGuild;
-  const res = await api({
-    code: $('guildCode').value,
-    displayName: name,
-    baseUrl
-  }).catch((e) => ({ ok: false, error: String(e) }));
-  btn.disabled = false;
+  const joinBtn = $('btnJoinGuild'), createBtn = $('btnCreateGuild');
+  joinBtn.disabled = createBtn.disabled = true;
+  let res;
+  try { res = await api({ ...(mode === 'join' ? { code: $('guildCode').value.trim() } : {}), displayName: name, baseUrl }); }
+  catch (e) { res = { ok: false, error: String(e) }; }
+  finally { joinBtn.disabled = createBtn.disabled = false; }
 
   if (!res || !res.ok) {
     showGuildError(res?.error || 'Could not reach the sync server');
@@ -1444,23 +1536,42 @@ async function spectateView(codeOverride) {
   const btn = $('btnViewGuild');
   btn.disabled = true;
 
-  const res = await window.api.viewGuild({ code, baseUrl })
-    .catch((e) => ({ ok: false, error: String(e) }));
-  btn.disabled = false;
+  let res;
+  try { res = await window.api.viewGuild({ code, baseUrl }); }
+  catch (e) { res = { ok: false, error: String(e) }; }
+  finally { btn.disabled = false; }
 
   if (!res || !res.ok) {
-    showGuildError(res?.error || 'Could not reach the sync server');
-    return;
+    state.guild.spectatorError = res?.error || 'Could not reach the sync server';
+    showGuildError(state.guild.spectatorError);
+    const synced = $('spectatorSynced'); synced.textContent = `offline · last synced ${relTime(state.guild.spectatorSyncedAt)}`; synced.classList.add('stale');
+    return false;
   }
   state.guild.spectating = res.code;
   state.guild.spectatorMembers = res.members;
   state.guild.spectatorSyncedAt = res.serverTime;
   state.guild.spectatorError = null;
+  $('spectatorError').hidden = true;
   renderGuild();
+  return true;
 }
 
 $('btnCreateGuild').addEventListener('click', () => guildAction('create'));
 $('btnJoinGuild').addEventListener('click', () => guildAction('join'));
+$('guildModeCreate').addEventListener('click', () => setGuildMode('create'));
+$('guildModeJoin').addEventListener('click', () => setGuildMode('join'));
+function setGuildMode(mode, focus = true) {
+  const create = mode !== 'join';
+  $('guildCreatePanel').hidden = !create;
+  $('guildJoinPanel').hidden = create;
+  $('guildModeCreate').setAttribute('aria-pressed', String(create));
+  $('guildModeJoin').setAttribute('aria-pressed', String(!create));
+  $('guildCode').disabled = create;
+  $('guildCode').required = !create;
+  hideGuildError();
+  if (focus) (create ? $('btnCreateGuild') : $('guildCode')).focus();
+}
+setGuildMode('create', false);
 $('guildCode').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') {
     e.preventDefault();
@@ -1470,7 +1581,7 @@ $('guildCode').addEventListener('keydown', (e) => {
 $('guildName').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') {
     e.preventDefault();
-    guildAction('create');
+    guildAction($('guildJoinPanel').hidden ? 'create' : 'join');
   }
 });
 $('guildCode').addEventListener('input', (e) => {
@@ -1492,6 +1603,7 @@ $('btnJoinFromSpectate').addEventListener('click', () => {
   state.guild.spectating = null;
   $('guildCode').value = code;
   renderGuild();
+  setGuildMode('join');
   $('guildName').focus();
 });
 
@@ -1522,19 +1634,26 @@ $('btnSharePage').addEventListener('click', async () => {
 $('btnRefreshGuild').addEventListener('click', async (e) => {
   const btn = e.currentTarget;
   btn.disabled = true;
-  const res = await window.api.refreshGuild().catch(() => ({ ok: false, error: 'Not connected' }));
-  btn.disabled = false;
+  let res;
+  try { res = await window.api.refreshGuild(); }
+  catch (error) { res = { ok: false, error: String(error) }; }
+  finally { btn.disabled = false; }
   if (res && res.ok) toast('Leaderboard updated', { icon: 'i-check' });
   else if (res && res.error) toast(res.error, { tone: 'danger' });
 });
 
 $('btnSpecRefresh').addEventListener('click', async () => {
-  await spectateView(state.guild.spectating);
-  toast('Leaderboard updated', { icon: 'i-check' });
+  const ok = await spectateView(state.guild.spectating);
+  if (ok) toast('Leaderboard updated', { icon: 'i-check' });
 });
 
 $('btnLeaveGuild').addEventListener('click', async () => {
-  const res = await window.api.leaveGuild().catch(() => ({ ok: false }));
+  const actions = [...$('guildBoard').querySelectorAll('button')];
+  actions.forEach((button) => { button.disabled = true; });
+  let res;
+  try { res = await window.api.leaveGuild(); }
+  catch (error) { res = { ok: false, error: String(error) }; }
+  finally { actions.forEach((button) => { button.disabled = false; }); }
   if (res && res.ok) {
     state.guild.enabled = false;
     state.guild.roomCode = null;
@@ -1542,9 +1661,9 @@ $('btnLeaveGuild').addEventListener('click', async () => {
     state.guild.syncedAt = 0;
     state.guild.error = null;
     state.guild.pageUrl = '';
-    toast('Left the guild', { tone: 'danger' });
+    toast(res.pendingLeave ? 'Left on this device; server removal will retry when online' : 'Left the guild');
     renderGuild();
-  }
+  } else { showGuildError(res?.error || 'Could not leave guild'); toast(res?.error || 'Could not leave guild', { tone: 'danger' }); }
 });
 
 $('sortToday').addEventListener('click', () => setGuildSort('today'));
@@ -1553,6 +1672,10 @@ $('specSortToday').addEventListener('click', () => setSpectatorSort('today'));
 $('specSortWeek').addEventListener('click', () => setSpectatorSort('week'));
 
 window.api.onGuildUpdated((payload) => {
+  if (typeof payload.enabled === 'boolean') state.guild.enabled = payload.enabled;
+  if (Object.hasOwn(payload, 'roomCode')) state.guild.roomCode = payload.roomCode || null;
+  if (typeof payload.hasPendingLeave === 'boolean') state.guild.hasPendingLeave = payload.hasPendingLeave;
+  if (payload.pageUrl) state.guild.pageUrl = payload.pageUrl;
   state.guild.members = Array.isArray(payload.members) ? payload.members : [];
   state.guild.syncedAt = payload.syncedAt || 0;
   state.guild.error = payload.error || null;
@@ -1562,6 +1685,7 @@ window.api.onGuildUpdated((payload) => {
 /* ---------- Live updates ---------- */
 window.api.onTimerTick((payload) => {
   state.timer = payload;
+  announceRestoreLimit(payload);
   renderTimer();
   renderLive();
 });
@@ -1569,6 +1693,9 @@ window.api.onTimerTick((payload) => {
 window.api.onDataUpdated((payload) => {
   state.data = payload.data;
   state.stats = payload.stats;
+  if (payload.timer) state.timer = payload.timer;
+  updateRecoveryError(payload.recoveryError);
+  announceRestoreLimit(state.timer);
   syncThemeFromData(payload.data);
   renderStats();
   renderTodos();
@@ -1607,6 +1734,8 @@ window.api.onGoalReached(({ goalMinutes }) => {
   state.data = res.data;
   state.stats = res.stats;
   state.timer = res.timer;
+  updateRecoveryError(res.recoveryError);
+  announceRestoreLimit(res.timer);
   applyTheme(res.data?.settings?.theme || 'dark');
 
   const guild = await window.api.getGuild().catch(() => null);
@@ -1619,3 +1748,59 @@ window.api.onGoalReached(({ goalMinutes }) => {
   renderAll();
   renderGuild();
 })();
+
+function updateRecoveryError(message) {
+  state.recoveryError = message || null;
+  const banner = $('recoveryBanner');
+  if (!banner) return;
+  banner.hidden = !state.recoveryError;
+  banner.textContent = state.recoveryError
+    ? `Study Quest could not read its saved data. New progress is paused. Open Settings and import a backup after checking your data file. Details: ${state.recoveryError}`
+    : '';
+  if ($('btnStart')) $('btnStart').disabled = !!state.recoveryError;
+}
+
+function announceRestoreLimit(timer) {
+  if (!timer?.restoreLimited || state.restoreLimitedAnnounced) return;
+  state.restoreLimitedAnnounced = true;
+  toast('Restored timer was capped at 12 hours. Check your session before saving.', { tone: 'danger', timeout: 7000 });
+}
+
+/* ---------- Settings and data backups ---------- */
+const settingsDialog = $('settingsDialog');
+$('btnSettings').addEventListener('click', () => {
+  $('settingsDisplayName').value = state.guild.displayName || state.data?.settings?.guild?.displayName || '';
+  $('pauseOnSuspend').checked = !!state.data?.settings?.pauseOnSuspend;
+  $('pauseOnLock').checked = !!state.data?.settings?.pauseOnLock;
+  const bounds = state.data?.settings?.overlayBounds;
+  $('overlayPreset').value = (bounds && (bounds.width < 150 || bounds.height < 190)) ? 'micro'
+    : bounds && (bounds.width < 200 || bounds.height < 240) ? 'mini'
+      : bounds && (bounds.width < 272 || bounds.height < 348) ? 'compact'
+        : bounds && (bounds.width >= 420 || bounds.height >= 540) ? 'roomy' : 'cozy';
+  $('settingsError').hidden = true; settingsDialog.showModal(); $('settingsDisplayName').focus();
+});
+$('btnCloseSettings').addEventListener('click', () => settingsDialog.close());
+async function runSetting(name, value) {
+  $('settingsError').hidden = true;
+  try {
+    const result = name === 'displayName' ? await window.api.setDisplayName(value) : await window.api.setSetting(name, value);
+    if (result?.ok === false) throw new Error(result.error || 'Could not save setting');
+    if (state.data?.settings) state.data.settings[name] = value;
+  } catch (error) { $('settingsError').textContent = error.message || String(error); $('settingsError').hidden = false; }
+}
+$('settingsDisplayName').addEventListener('change', (e) => runSetting('displayName', e.target.value.trim()));
+$('pauseOnSuspend').addEventListener('change', (e) => runSetting('pauseOnSuspend', e.target.checked));
+$('pauseOnLock').addEventListener('change', (e) => runSetting('pauseOnLock', e.target.checked));
+$('overlayPreset').addEventListener('change', async (e) => {
+  try { const result = await window.api.setOverlaySize(e.target.value); if (result?.ok === false) throw new Error(result.error || 'Could not resize overlay'); }
+  catch (error) { $('settingsError').textContent = error.message || String(error); $('settingsError').hidden = false; }
+});
+$('btnExportData').addEventListener('click', async () => {
+  try { const result = await window.api.exportData(); if (result?.ok) toast('Backup exported'); else if (!result?.canceled) throw new Error(result?.error || 'Export failed'); }
+  catch (error) { $('settingsError').textContent = error.message || String(error); $('settingsError').hidden = false; }
+});
+$('btnImportData').addEventListener('click', async () => {
+  if (!window.confirm('Importing a backup replaces your current Study Quest data. Continue only if you have a backup of the current data.')) return;
+  try { const result = await window.api.importData(); if (result?.ok) toast('Backup imported'); else if (!result?.canceled) throw new Error(result?.error || 'Import failed'); }
+  catch (error) { $('settingsError').textContent = error.message || String(error); $('settingsError').hidden = false; }
+});

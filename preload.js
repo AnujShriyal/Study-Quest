@@ -17,9 +17,13 @@ contextBridge.exposeInMainWorld('api', {
 
   deleteSession: (id) => ipcRenderer.invoke('session:delete', id),
   restoreSession: (session) => ipcRenderer.invoke('session:restore', session),
+  updateSession: (id, changes) => ipcRenderer.invoke('session:update', id, changes),
 
   setGoal: (minutes) => ipcRenderer.invoke('goal:set', minutes),
   setTheme: (theme) => ipcRenderer.invoke('theme:set', theme),
+  setSetting: (name, value) => ipcRenderer.invoke('setting:set', name, value),
+  exportData: () => ipcRenderer.invoke('data:export'),
+  importData: () => ipcRenderer.invoke('data:import'),
 
   getGuild: () => ipcRenderer.invoke('guild:get'),
   createGuild: (opts) => ipcRenderer.invoke('guild:create', opts),
@@ -34,6 +38,7 @@ contextBridge.exposeInMainWorld('api', {
   respawnOverlay: () => ipcRenderer.invoke('overlay:respawn'),
   resizeOverlayTo: (w, h) => ipcRenderer.send('overlay:resizeTo', w, h),
   resizeOverlayEnd: () => ipcRenderer.send('overlay:resizeEnd'),
+  setOverlaySize: (preset) => ipcRenderer.invoke('overlay:size', preset),
   showDashboard: () => ipcRenderer.invoke('window:showDashboard'),
   minimizeWindow: () => ipcRenderer.invoke('window:minimize'),
   toggleMaximize: () => ipcRenderer.invoke('window:toggleMaximize'),

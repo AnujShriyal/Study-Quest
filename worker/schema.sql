@@ -12,6 +12,11 @@ CREATE TABLE IF NOT EXISTS members (
   level         INTEGER NOT NULL DEFAULT 1,
   total_seconds INTEGER NOT NULL DEFAULT 0,
   last_seen     INTEGER NOT NULL,
+  daily_json    TEXT NOT NULL DEFAULT '[]',
+  time_zone     TEXT NOT NULL DEFAULT 'UTC',
+  today_date    TEXT NOT NULL DEFAULT '',
+  cap_today     INTEGER NOT NULL DEFAULT 0,
+  cap_week      INTEGER NOT NULL DEFAULT 0,
   PRIMARY KEY (room, user_id)
 );
 

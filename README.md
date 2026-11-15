@@ -68,8 +68,11 @@ leaderboard syncs aggregate stats through a tiny server you deploy once.
 - A fourth **Guild** tab: create a guild and share its 6-character code, or
   join a friend's guild. No accounts, no signup — the guild code is the group.
 - Everyone in the guild sees each other's display name, today's study time,
-  this week's time, streak, level, and total time, with Today/This week
+  last 7 days' time, streak, level, and total time, with Today/Last 7 days
   sorting and top-3 highlighting.
+- Creating asks for a display name and creates a new guild; joining is a
+  separate mode that requires the guild code. Guest viewing has its own code
+  field and never adds you to the leaderboard.
 - **The leaderboard is visible to all**:
   - Anyone with a guild code can view its leaderboard as a guest (in-app,
     no joining needed — "Just watching?" in the Guild tab).
@@ -95,8 +98,11 @@ leaderboard syncs aggregate stats through a tiny server you deploy once.
 - **Overview tab** — 7-day bar chart, focus mix by subject, and a GitHub-style
   study activity calendar covering the last 12 months.
 - **Missions tab** — the full quest log, with active and completed tasks separated.
-- **History tab** — sessions grouped by day with per-day totals, start times,
-  durations, and delete/undo.
+- **History tab** — search and filter the full session history, page through
+  results, edit a session's subject, duration, or date, and delete/undo.
+- **Settings** — edit your display name, choose an overlay size, configure
+  pause-on-suspend/lock behavior, and import or export a data backup. Importing
+  asks before replacing local data.
 - Window controls for minimize, maximize/restore, and close.
 - Closing the dashboard hides it to the system tray instead of quitting.
 
@@ -165,7 +171,8 @@ leaderboard syncs aggregate stats through a tiny server you deploy once.
 ### Requirements
 
 - Windows 10 or 11.
-- [Node.js](https://nodejs.org/) LTS (Node 20 LTS is recommended) and npm.
+- [Node.js](https://nodejs.org/) 22.13 LTS or newer and npm (the tests use the
+  built-in `node:sqlite` module).
 - No account or internet connection is required after dependencies are installed.
 
 Check that Node and npm are available:
@@ -206,7 +213,7 @@ npm run dist
 The installer is written to `dist/`. The current build is:
 
 ```text
-dist\Study Quest Setup 1.3.1.exe
+dist\Study Quest Setup 1.4.0.exe
 ```
 
 Run the installer to install Study Quest and create Desktop and Start Menu
@@ -240,7 +247,7 @@ can be restored from the Undo toast.
 
 ### Review history and activity
 
-- The **Overview** tab shows the current week, subject mix, and 12-month heatmap.
+- The **Overview** tab shows the last 7 days, subject mix, and 12-month heatmap.
 - The **History** tab shows saved sessions grouped by date.
 - The activity calendar uses fixed daily intensity levels:
   - No study
@@ -439,10 +446,15 @@ Edit `DATA_PATH` near the top of `main.js`. Keep the file inside
 | `npm install` | Install Electron and electron-builder |
 | `npm start` | Run the app in development mode |
 | `npm run dist` | Build the Windows NSIS installer into `dist/` |
+| `npm test` | Run built-in UI and core contract checks |
+| `npm run test:ui` | Run the isolated Electron renderer smoke and save screenshots under `artifacts/ui-smoke/` |
 
-There is no separate test script in the repository. The app was validated with
-Electron-based smoke checks for the dashboard, overlay, calendar, tabs, goal
-picker, IPC, persistence, and window sizing.
+The Electron smoke uses a temporary user-data directory and exercises the real
+main/preload IPC bridge; it never reads or writes the normal application data.
+It captures the dashboard, create/join guild modes, settings, dark/light/legacy
+themes, and the 100-pixel micro overlay. Core tests cover atomic backup recovery,
+import validation, and migration from the legacy guild data format; guild server
+schema migration steps are documented in [`worker/README.md`](worker/README.md).
 
 ## Packaging notes
 
@@ -452,8 +464,9 @@ picker, IPC, persistence, and window sizing.
   build does not try to discover a code-signing certificate.
 - `dist/` is ignored by Git. Build the installer after cloning rather than
   committing generated binaries.
-- The packaged app includes `main.js`, `preload.js`, `renderer/`, `assets/`, and
-  `package.json`. It does not include `docs/` screenshots or development files.
+- The packaged app includes `main.js`, `preload.js`, `sync.js`, `lib/`,
+  `renderer/`, `assets/`, and `package.json`. It does not include `docs/`
+  screenshots or development files.
 
 ## Troubleshooting
 

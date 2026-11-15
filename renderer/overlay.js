@@ -3,7 +3,9 @@ const state = {
   stats: null,
   timer: { running: false, subject: '', elapsedSeconds: 0, canSave: false },
   tooShortUntil: 0,
-  tooShortText: ''
+  tooShortText: '',
+  recoveryError: null,
+  restoreLimitedAnnounced: false
 };
 
 /* Dark is the default theme — apply before first paint; settings correct it. */
@@ -39,7 +41,7 @@ function fmtMinutesShort(totalSeconds) {
 
 function liveTodaySeconds() {
   if (!state.stats) return 0;
-  return state.stats.todaySeconds + Math.max(0, state.timer.elapsedSeconds || 0);
+  return Number.isFinite(state.timer?.liveTodaySeconds) ? state.timer.liveTodaySeconds : state.stats.todaySeconds;
 }
 
 /* ---------- Timer ---------- */
@@ -62,9 +64,13 @@ function renderTimer() {
   status.classList.toggle('paused', !running && elapsed > 0);
 
   const action = $('btnAction');
+  action.disabled = !!state.recoveryError;
   action.classList.toggle('is-running', running);
   $('actionLabel').textContent = running ? 'Pause' : elapsed > 0 ? 'Resume' : 'Start';
-  action.title = running ? 'Pause session' : elapsed > 0 ? 'Resume session' : 'Start session';
+  const actionName = running ? 'Pause session' : elapsed > 0 ? 'Resume session' : 'Start session';
+  action.title = actionName;
+  action.setAttribute('aria-label', actionName);
+  action.querySelector('use')?.setAttribute('href', running ? '#i-pause' : '#i-play');
   $('btnStop').disabled = elapsed === 0;
 
   const input = $('subjectInput');
@@ -140,7 +146,9 @@ function renderTodos() {
     chk.innerHTML = '<svg class="icon" aria-hidden="true"><use href="#i-check"></use></svg>';
     chk.addEventListener('click', async () => {
       chk.disabled = true;
-      await window.api.toggleTodo(t.id);
+      try { const result = await window.api.toggleTodo(t.id); if (result?.ok === false) throw new Error(result.error || 'Could not update mission'); }
+      catch (error) { announceOverlayError(error.message || String(error)); }
+      finally { chk.disabled = false; }
     });
 
     const txt = document.createElement('span');
@@ -155,18 +163,20 @@ function renderTodos() {
 
 /* ---------- Events ---------- */
 $('btnAction').addEventListener('click', async () => {
-  if (state.timer.running) {
-    state.timer = await window.api.pauseTimer();
-  } else {
-    const subject = $('subjectInput').value.trim();
-    state.timer = await window.api.startTimer(subject);
-  }
-  renderTimer();
-  renderGoal();
+  const button = $('btnAction'); button.disabled = true;
+  try {
+    if (state.timer.running) state.timer = await window.api.pauseTimer();
+    else state.timer = await window.api.startTimer($('subjectInput').value.trim());
+    renderTimer(); renderGoal();
+  } catch (error) { announceOverlayError(`Could not update timer: ${error.message || error}`); }
+  finally { button.disabled = false; }
 });
 
 $('btnStop').addEventListener('click', async () => {
-  const res = await window.api.stopTimer();
+  let res;
+  try { res = await window.api.stopTimer(); }
+  catch (error) { announceOverlayError(`Could not stop session: ${error.message || error}`); return; }
+  if (res?.error) { announceOverlayError(`Session was not saved: ${res.error}`); return; }
   state.timer = { running: false, subject: '', elapsedSeconds: 0, canSave: false };
   renderTimer();
   renderGoal();
@@ -182,6 +192,11 @@ $('btnStop').addEventListener('click', async () => {
     }, 3300);
   }
 });
+function announceOverlayError(message) {
+  let region = $('overlayError');
+  if (!region) { region = document.createElement('div'); region.id = 'overlayError'; region.setAttribute('role', 'alert'); region.className = 'overlay-error'; document.querySelector('.overlay-card').appendChild(region); }
+  region.textContent = message;
+}
 
 $('subjectInput').addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && !state.timer.running && state.timer.elapsedSeconds === 0) {
@@ -194,9 +209,10 @@ $('miniTodoForm').addEventListener('submit', async (e) => {
   const input = $('miniTodoInput');
   const text = input.value.trim();
   if (!text) return;
-  input.value = '';
-  await window.api.addTodo(text);
-  input.focus();
+  const button = $('miniAddBtn'); button.disabled = true;
+  try { const result = await window.api.addTodo(text); if (result?.ok === false) throw new Error(result.error || 'Could not add mission'); input.value = ''; input.focus(); }
+  catch (error) { announceOverlayError(error.message || String(error)); }
+  finally { button.disabled = false; }
 });
 
 $('btnDash').addEventListener('click', () => window.api.showDashboard());
@@ -212,8 +228,9 @@ const OVERLAY_MIN_W = 100, OVERLAY_MIN_H = 80, OVERLAY_MAX_W = 800, OVERLAY_MAX_
   let dragging = false;
   let startX = 0, startY = 0, startW = 0, startH = 0;
 
-  grip.addEventListener('mousedown', (e) => {
+  grip.addEventListener('pointerdown', (e) => {
     dragging = true;
+    grip.setPointerCapture(e.pointerId);
     startX = e.screenX;
     startY = e.screenY;
     const rect = card.getBoundingClientRect();
@@ -221,18 +238,19 @@ const OVERLAY_MIN_W = 100, OVERLAY_MIN_H = 80, OVERLAY_MAX_W = 800, OVERLAY_MAX_
     startH = rect.height;
     e.preventDefault();
   });
-  window.addEventListener('mousemove', (e) => {
+  grip.addEventListener('pointermove', (e) => {
     if (!dragging) return;
     const w = Math.min(OVERLAY_MAX_W, Math.max(OVERLAY_MIN_W, Math.round(startW + (e.screenX - startX))));
     const h = Math.min(OVERLAY_MAX_H, Math.max(OVERLAY_MIN_H, Math.round(startH + (e.screenY - startY))));
     window.api.resizeOverlayTo(w, h);
   });
-  window.addEventListener('mouseup', () => {
+  grip.addEventListener('pointerup', () => {
     if (!dragging) return;
     dragging = false;
     window.api.resizeOverlayEnd();
     overlayTier.autoFitHeight();
   });
+  grip.addEventListener('pointercancel', () => { if (dragging) { dragging = false; window.api.resizeOverlayEnd(); } });
 })();
 
 /* ---------- Size tiers + auto-fit height at the small tiers ---------- */
@@ -260,6 +278,10 @@ const overlayTier = {
     const todoH = todo && !todo.hidden ? todo.offsetHeight : 0;
     const width = Math.max(OVERLAY_MIN_W, Math.round(this.card.getBoundingClientRect().width));
     const height = Math.max(OVERLAY_MIN_H, drag + block + controls + todoH + 2);
+    // Compare against the window's real height, not a remembered value —
+    // a manual drag can move the window far from the last auto-fit.
+    const current = Math.round(this.card.getBoundingClientRect().height);
+    if (Math.abs(height - current) <= 2) return;
     window.api.resizeOverlayTo(width, height);
   }
 };
@@ -268,13 +290,17 @@ if (overlayTier.card) {
   new ResizeObserver((entries) => {
     const { width, height } = entries[0].contentRect;
     overlayTier.apply(width, height);
-    overlayTier.autoFitHeight();
+    if (overlayTier.isAutoFit()) requestAnimationFrame(() => overlayTier.autoFitHeight());
   }).observe(overlayTier.card);
 }
 
 /* ---------- Live updates ---------- */
 window.api.onTimerTick((payload) => {
   state.timer = payload;
+  if (payload.restoreLimited && !state.restoreLimitedAnnounced) {
+    state.restoreLimitedAnnounced = true;
+    announceOverlayError('Restored timer was capped at 12 hours. Check your session before saving.');
+  }
   renderTimer();
   renderGoal();
 });
@@ -282,6 +308,8 @@ window.api.onTimerTick((payload) => {
 window.api.onDataUpdated((payload) => {
   state.data = payload.data;
   state.stats = payload.stats;
+  state.recoveryError = payload.recoveryError || null;
+  if (state.recoveryError) announceOverlayError(`Saved data could not be read. Import a backup in Settings. ${state.recoveryError}`);
   applyTheme(payload.data?.settings?.theme || 'dark');
   renderGoal();
   renderTodos();
@@ -293,6 +321,12 @@ window.api.onDataUpdated((payload) => {
   state.data = res.data;
   state.stats = res.stats;
   state.timer = res.timer;
+  state.recoveryError = res.recoveryError || null;
+  if (res.timer?.restoreLimited && !state.restoreLimitedAnnounced) {
+    state.restoreLimitedAnnounced = true;
+    announceOverlayError('Restored timer was capped at 12 hours. Check your session before saving.');
+  }
+  if (state.recoveryError) announceOverlayError(`Saved data could not be read. Import a backup in Settings. ${state.recoveryError}`);
   applyTheme(res.data?.settings?.theme || 'dark');
   renderTimer();
   renderGoal();

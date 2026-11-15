@@ -1,27 +1,32 @@
 {
   "name": "study-quest",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "A lightweight desktop study tracker with XP levels, streaks, a todo list, and a floating overlay timer.",
   "main": "main.js",
   "author": "You",
   "license": "MIT",
   "scripts": {
     "start": "electron .",
-    "dist": "set CSC_IDENTITY_AUTO_DISCOVERY=false&& electron-builder"
+    "dist": "set CSC_IDENTITY_AUTO_DISCOVERY=false&& electron-builder",
+    "test": "node --test tests/*.test.cjs",
+    "test:ui": "node --test tests/ui-smoke.cjs"
   },
   "devDependencies": {
-    "electron": "^31.3.0",
-    "electron-builder": "^24.13.3"
+    "electron": "45.3.2",
+    "electron-builder": "26.18.0"
   },
   "build": {
     "appId": "com.studyquest.app",
     "productName": "Study Quest",
+    "artifactName": "Study-Quest-Setup.${ext}",
     "directories": {
       "output": "dist"
     },
     "files": [
       "main.js",
       "preload.js",
+      "sync.js",
+      "lib/**/*",
       "renderer/**/*",
       "assets/**/*",
       "package.json"
