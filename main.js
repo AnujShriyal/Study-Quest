@@ -542,13 +542,38 @@ function createMainWindow() {
 
 function clampOverlayBounds(saved, width, height) {
   if (!saved) return null;
-  const onSomeDisplay = screen.getAllDisplays().some(({ workArea }) =>
-    saved.x < workArea.x + workArea.width &&
-    saved.x + width > workArea.x &&
-    saved.y < workArea.y + workArea.height &&
-    saved.y + height > workArea.y
-  );
-  return onSomeDisplay ? saved : null;
+  // A saved position is only kept if a usable chunk of the window sits on
+  // some display — mostly off-screen counts as lost and gets respawned.
+  const MIN_VISIBLE = 80;
+  const kept = screen.getAllDisplays().some(({ workArea }) => {
+    const interW = Math.min(saved.x + width, workArea.x + workArea.width) - Math.max(saved.x, workArea.x);
+    const interH = Math.min(saved.y + height, workArea.y + workArea.height) - Math.max(saved.y, workArea.y);
+    return interW >= MIN_VISIBLE && interH >= MIN_VISIBLE;
+  });
+  return kept ? saved : null;
+}
+
+// Put the floating timer back at its default spot (primary display,
+// top-right). Used by the Respawn button in the main window's title bar.
+function respawnOverlay() {
+  const size = overlayWindow && !overlayWindow.isDestroyed()
+    ? overlayWindow.getSize()
+    : [300, 400];
+  const primary = screen.getPrimaryDisplay().workArea;
+  const x = primary.x + primary.width - size[0] - 24;
+  const y = primary.y + 24;
+
+  if (!overlayWindow || overlayWindow.isDestroyed()) {
+    data.settings.overlayBounds = null;
+    saveData();
+    createOverlayWindow();
+  } else {
+    overlayWindow.setPosition(x, y);
+    data.settings.overlayBounds = overlayWindow.getBounds();
+    saveData();
+    if (!overlayWindow.isVisible()) overlayWindow.showInactive();
+  }
+  return { ok: true, x, y };
 }
 
 function createOverlayWindow() {
@@ -868,6 +893,7 @@ ipcMain.handle('guild:setName', (_e, name) => sync.setName(name));
 
 ipcMain.handle('overlay:toggle', () => toggleOverlay());
 ipcMain.handle('overlay:hide', () => { if (overlayWindow) overlayWindow.hide(); });
+ipcMain.handle('overlay:respawn', () => respawnOverlay());
 
 // Overlay corner-grip resizing (transparent frameless windows can't be
 // user-resized natively, so the renderer drives the size).

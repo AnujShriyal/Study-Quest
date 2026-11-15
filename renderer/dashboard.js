@@ -1233,6 +1233,11 @@ $('themeMenu').addEventListener('keydown', (event) => {
 
 $('btnOverlay').addEventListener('click', () => window.api.toggleOverlay());
 
+$('btnRespawnOverlay').addEventListener('click', async () => {
+  const res = await window.api.respawnOverlay().catch(() => ({ ok: false }));
+  if (res && res.ok) toast('Floating timer respawned to its default spot', { icon: 'i-target' });
+});
+
 /* ---------- Guild leaderboard ---------- */
 const FRIEND_AWAY_MS = 2 * 60 * 60 * 1000;
 
